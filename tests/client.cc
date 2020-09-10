@@ -11,6 +11,8 @@ using namespace ::testing;
 
 TEST(SockPuppet, ClientToServerExit)
 {
+    u16 port = 31000 + (std::rand() % (31000 - 32000 + 1));
+
     // Send exit command to terminate server
     Request request;
     request.set_type(EXIT);
@@ -18,10 +20,10 @@ TEST(SockPuppet, ClientToServerExit)
     request.set_origin("127.0.0.1");
 
     // Start in detached mode so below code can run
-    sockpuppet::blocking serv(31337);
+    sockpuppet::blocking serv(port);
     serv.start_detached();
 
-    sockpuppet::client c(31337);
+    sockpuppet::client c(port);
     c.send_request(request);
 
     // Wait for shutdown

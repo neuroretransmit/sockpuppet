@@ -11,11 +11,12 @@ using namespace ::testing;
 
 TEST(SockPuppet, StopDetached)
 {
+    u16 port = 30000 + (std::rand() % (30000 - 31000 + 1));
     // Start in detached mode so below code can run
-    sockpuppet::blocking serv(31338);
+    sockpuppet::blocking serv(port);
     serv.start_detached();
     serv.stop();
 
     ASSERT_TRUE(serv.is_stopped());
-    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 }

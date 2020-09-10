@@ -68,6 +68,7 @@ namespace sockpuppet
                 log::error("Timeout reached. Connection failed to establish");
                 exit(1);
             } else {
+                log::info("--- SEND ---");
                 log::info("Connection established");
             }
 
@@ -85,8 +86,6 @@ namespace sockpuppet
             request.SerializeToCodedStream(&coded_output);
 
             // Encrypt
-            log::data(socket_buffer);
-            log::info("Decrypted size %lu", socket_buffer.size());
             aead.seal(socket_buffer, aad);
             u32 encrypted_size = socket_buffer.size();
             u8* encrypted_size_bytes = (u8*) &encrypted_size;
@@ -101,12 +100,10 @@ namespace sockpuppet
                     if ((byte_count = send(sockfd, socket_buffer.data(), socket_buffer.size(), 0)) == -1) {
                         log::error("Failed to send data");
                         continue;
+                    } else {
+                        log::info("Sent %d bytes", byte_count);
+                        break;
                     }
-
-                    log::info("Encrypted size %lu", socket_buffer.size());
-                    log::info("Sent %d bytes", byte_count);
-                    log::data(socket_buffer);
-                    break;
                 }
             } catch (runtime_error& e) {
                 log::error(string(e.what()));

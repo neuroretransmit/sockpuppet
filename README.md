@@ -1,6 +1,6 @@
 # sockpuppet
 
-Header only C++ implementation of encrypted socket communication over TCP/IP using [RC6-GCM-SIV](https://gitlab.com/optimisticninja/rc6) using protobuf for messages.
+Header only C++ implementation of encrypted socket communication over TCP/IP using [RC6-GCM-SIV](https://gitlab.com/optimisticninja/rc6)/protobuf for messages.
 
 ## Features
 
@@ -24,6 +24,8 @@ int main()
 {
     sockpuppet::blocking server(31337);
     server.start(); // or s.start_detached() to run in background
+    
+    // and execute code down here
 }
 ```
 

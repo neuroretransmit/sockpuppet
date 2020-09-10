@@ -60,7 +60,7 @@ namespace sockpuppet
 
         void start_detached() { handle(true); }
 
-        bool is_stopped() { return thread_stopped; }
+        bool is_stopped() const { return thread_stopped; }
 
         void wait()
         {
@@ -72,7 +72,7 @@ namespace sockpuppet
         thread t;
         u16 port;
         bool detached = false;
-        atomic<bool> thread_stopped = atomic<bool>(false);
+        atomic<bool> thread_stopped = atomic<bool>(true);
         static const int HEADER_SIZE = sizeof(u32);
 
         void handle(bool detached = false)
@@ -81,6 +81,7 @@ namespace sockpuppet
             signal(SIGINT, sigint_handler);
 
             try {
+                thread_stopped = false;
                 t = thread([this] {
                     socket_handler(this->port);
                     thread_stopped = true;
@@ -199,13 +200,7 @@ namespace sockpuppet
             close(sockfd);
         }
 
-        static size_t read_size_header(const vector<u8>& header)
-        {
-            size_t recv_size = ((u32*) header.data())[0];
-            log::data(vector<u8>((u32*) header.data(), (u32*) header.data() + HEADER_SIZE));
-            log::info("Receive size %lu", recv_size);
-            return recv_size;
-        }
+        static size_t read_size_header(const vector<u8>& header) { return ((u32*) header.data())[0]; }
 
         static Request read_body(int connfd, google::protobuf::uint32 size)
         {
@@ -222,16 +217,13 @@ namespace sockpuppet
             if ((bytes_received = recv(connfd, socket_bytes.data(), RECV_SIZE, MSG_WAITALL)) == -1)
                 log::error("Failed to receive data");
 
-            log::data(socket_bytes);
-            log::info("Encrypted size %lu", RECV_SIZE);
+            log::info("Received %lu bytes", RECV_SIZE);
 
             // Strip header
             vector<u8> without_header(socket_bytes.begin() + HEADER_SIZE, socket_bytes.end());
 
             // Decrypt
             aead.open(without_header, aad);
-            log::info("Decrypted size %lu", socket_bytes.size());
-            log::data(socket_bytes);
 
             Request request;
 
