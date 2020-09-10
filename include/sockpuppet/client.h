@@ -63,8 +63,6 @@ class client
         // TODO: Check if port in use
         // TODO: Check if default port or ephemeral
         int optval = 1;
-        //struct timeval tv;
-        //tv.tv_sec = 30;
         
         // Set option to put out of band data in the normal input queue
         if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(int)) == -1) ||
