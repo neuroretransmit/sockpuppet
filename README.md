@@ -15,15 +15,15 @@ Doxygen generated files are in [`doc/latex`](doc/latex) and [`doc/html`](doc/htm
 
 ### Secure TCP/IP socket communications with custom handshake/port agreement.
 
-#### Server
+#### Server (Blocking)
 
 ```cpp
 #include <sockpuppet/server.h>
 
 int main()
 {
-    server s(31337);
-    s.start(); // or s.start_detached() to run in background
+    sockpuppet::blocking server(31337);
+    server.start(); // or s.start_detached() to run in background
 }
 ```
 
@@ -32,14 +32,16 @@ int main()
 ```cpp
 #include <sockpuppet/client.h>
 
+#include "proto/commands.pb.h"
+
 int main()
 {
-    client c(31337);
+    sockpuppet::client client(31337);
     
     Request request;
     request.set_type(EXIT);
     
-    c.send_request(request);
+    client.send_request(request);
 }
 ```
 
