@@ -13,6 +13,6 @@ int main(int argc, char** argv)
     request.set_origin("127.0.0.1");
     
     int port = atoi(argv[1]);
-    client c = client(port);
+    sockpuppet::client c = sockpuppet::client(port);
     c.send_request(request);
 }

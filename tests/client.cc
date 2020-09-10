@@ -4,8 +4,8 @@
 #include <chrono>
 #include <thread>
 
+#include "sockpuppet/blocking.h"
 #include "sockpuppet/client.h"
-#include "sockpuppet/server.h"
 
 using namespace ::testing;
 
@@ -18,26 +18,14 @@ TEST(SockPuppet, ClientToServerExit)
     request.set_origin("127.0.0.1");
 
     // Start in detached mode so below code can run
-    server serv(31337);
+    sockpuppet::blocking serv(31337);
     serv.start_detached();
 
-    client c(31337);
+    sockpuppet::client c(31337);
     c.send_request(request);
 
     // Wait for shutdown
     serv.wait();
-
-    ASSERT_TRUE(serv.is_stopped());
-    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
-
-}
-
-TEST(SockPuppet, StopDetached)
-{
-    // Start in detached mode so below code can run
-    server serv(31338);
-    serv.start_detached();
-    serv.stop();
 
     ASSERT_TRUE(serv.is_stopped());
     std::this_thread::sleep_for(std::chrono::milliseconds(1200));
