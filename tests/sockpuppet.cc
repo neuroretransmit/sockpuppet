@@ -1,6 +1,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <thread>
+
 #include "sockpuppet/client.h"
 #include "sockpuppet/server.h"
 
@@ -25,6 +28,8 @@ TEST(SockPuppet, ClientToServerExit)
     serv.wait();
 
     ASSERT_TRUE(serv.is_stopped());
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+
 }
 
 TEST(SockPuppet, StopDetached)
@@ -35,4 +40,5 @@ TEST(SockPuppet, StopDetached)
     serv.stop();
 
     ASSERT_TRUE(serv.is_stopped());
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
 }

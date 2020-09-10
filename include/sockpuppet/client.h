@@ -24,6 +24,9 @@ using namespace google::protobuf::io;
 static const vector<u8> KEY(32, 0);
 static const int HEADER_SIZE = sizeof(int);
 
+// TODO: Support/deduce IPv4/6
+// TODO: Non-blocking/select
+
 class client
 {
   public:
@@ -31,27 +34,6 @@ class client
     {
         // Create socket
         if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-            log::warn("Socket creation failed, waiting for socket to be ready");
-            std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
-            std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
-
-            // Store the time difference between start and end
-            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
-            
-            while (diff <= 30) {
-                stringstream ss;
-                ss << "Client socket create timeout: " << diff << "s\n";
-                log::info(ss.str());
-                
-                if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-                    continue;
-                else
-                    break;
-                
-                end = std::chrono::system_clock::now();
-                diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
-            }
-            
             log::error("Timeout waiting for socket creation, terminating");
             exit(1);
         }
@@ -80,29 +62,7 @@ class client
     void send_request(const Request& request)
     {
         // Connect
-        
         if (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr))) {
-            log::warn("Socket creation failed, retrying");
-            std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
-            std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
-
-            // Store the time difference between start and end
-            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
-            
-            while (diff <= 30) {
-                stringstream ss;
-                ss << "Connect timeout: " << diff << "s\n";
-                log::info(ss.str());
-                
-                if (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)))
-                    continue;
-                else
-                    break;
-                
-                end = std::chrono::system_clock::now();
-                diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
-            }
-            
             log::error("Timeout reached. Connection failed to establish");
             exit(1);
         } else {
@@ -124,9 +84,7 @@ class client
 
         // Encrypt
         log::data(socket_buffer);
-        stringstream ss;
-        ss << "Decrypted size " << socket_buffer.size();
-        log::info(ss.str());
+        log::info("Decrypted size %lu", socket_buffer.size());
         aead.seal(socket_buffer, aad);
         u32 encrypted_size = socket_buffer.size();
         u8* encrypted_size_bytes = (u8*) &encrypted_size;
@@ -143,12 +101,8 @@ class client
                     continue;
                 }
 
-                stringstream ss;
-                ss << "Encrypted size " << socket_buffer.size();
-                log::info(ss.str());
-                ss = stringstream();
-                ss << "Sent " << byte_count << " bytes";
-                log::info(ss.str());
+                log::info("Encrypted size %lu", socket_buffer.size());
+                log::info("Sent %d bytes", byte_count);
                 log::data(socket_buffer);
                 break;
             }

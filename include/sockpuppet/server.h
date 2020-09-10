@@ -32,6 +32,9 @@ using std::thread;
 using namespace google::protobuf::io;
 using namespace std::chrono_literals;
 
+// TODO: Support/deduce IPv4/6
+// TODO: Non-blocking/select
+
 /// RC6 encrypted socket server using protobuf
 class server
 {
@@ -114,27 +117,7 @@ class server
 
         // Create socket
         if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-            log::warn("Socket creation failed, retrying");
-            std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
-            std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
-
-            // Store the time difference between start and end
-            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
-            
-            while (diff <= 30) {
-                stringstream ss;
-                ss << "Server socket create timeout: " << diff << "s\n";
-                log::info(ss.str());
-                
-                if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-                    continue;
-                else
-                    break;
-                
-                end = std::chrono::system_clock::now();
-                diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
-            }
-            
+            log::error("Failed to create socket, terminating");
             exit(1);
         }
         
@@ -163,9 +146,7 @@ class server
             exit(1);
         }
 
-        stringstream ss;
-        ss << "Listening on port " << port << "...\n";
-        log::info(ss.str());
+        log::info("Listening on port %d...", port);
 
         struct sockaddr_in cli;
         vector<u8> socket_bytes(HEADER_SIZE);
@@ -182,10 +163,7 @@ class server
                 struct in_addr client_ip = cli.sin_addr;
                 char* addr = inet_ntoa(client_ip);
                 int port = cli.sin_port;
-
-                stringstream ss;
-                ss << "Incoming connection: " << addr << ":" << port;
-                log::info(ss.str());
+                log::info("Incoming connection: %s:%d", addr, port);
             }
 
             socket_bytes.clear();
@@ -222,10 +200,8 @@ class server
     static size_t read_size_header(const vector<u8>& header)
     {
         size_t recv_size = ((u32*) header.data())[0];
-        stringstream ss;
-        ss << "Receive size " << recv_size;
         log::data(vector<u8>((u32*) header.data(), (u32*) header.data() + HEADER_SIZE));
-        log::info(ss.str());
+        log::info("Receive size %lu", recv_size);
         return recv_size;
     }
 
@@ -245,18 +221,14 @@ class server
             log::error("Failed to receive data");
 
         log::data(socket_bytes);
-        stringstream ss;
-        ss << "Encrypted size " << RECV_SIZE;
-        log::info(ss.str());
+        log::info("Encrypted size %lu", RECV_SIZE);
 
         // Strip header
         vector<u8> without_header(socket_bytes.begin() + HEADER_SIZE, socket_bytes.end());
 
         // Decrypt
         aead.open(without_header, aad);
-        ss = stringstream();
-        ss << "Decrypted size " << socket_bytes.size();
-        log::info(ss.str());
+        log::info("Decrypted size %lu", socket_bytes.size());
         log::data(socket_bytes);
 
         Request request;
@@ -268,8 +240,7 @@ class server
         CodedInputStream::Limit message_limit = coded_input.PushLimit(size);
         request.ParseFromCodedStream(&coded_input);
         coded_input.PopLimit(message_limit);
-
-        log::info(request.DebugString());
+        log::info("\n\n%s", request.DebugString().c_str());
         return request;
     }
 };
