@@ -28,7 +28,9 @@ Packet {
 
 Doxygen generated files are in [`doc/latex`](doc/latex) and [`doc/html`](doc/html).
 
-### Secure TCP/IP socket communications with custom handshake/port agreement.
+### TODO: Handshake via B-MQKD (Multiparty  Quantum  Key  Distribution  with  block cipher) 
+
+Secure TCP/IP socket communications with quantum-proof handshake negotiation.
 
 #### Server (Blocking)
 
