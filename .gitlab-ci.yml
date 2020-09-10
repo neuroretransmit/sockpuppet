@@ -5,8 +5,12 @@ stages:
     - release
 
 before_script:
-    - apt-get update && apt-get -y install cmake libgtest-dev libgmock-dev libprotobuf-dev protobuf-compiler
-
+    - apt-get update && apt-get -y install cmake libgtest-dev libgmock-dev libprotobuf-dev protobuf-compiler git
+    - git clone https://gitlab.com/optimisticninja/rc6.git
+    - git clone https://gitlab.com/optimisticninja/log.git
+    - cd rc6 && make && make install
+    - cd ../log && make && make install
+    
 build:
     stage: build
     script:
@@ -27,5 +31,5 @@ release:
         description: 'Created using the GitLab release-cli'
         tag_name: '$CI_COMMIT_TAG'
         ref: '$CI_COMMIT_TAG'
-    
+
 
