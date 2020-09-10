@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+// Server/Client
+
+enum RequestType {
+    EXIT = 0;
+    RUN_COMMAND = 1;
+    DOWNLOAD = 2;
+}
+
+message Request {
+    RequestType type = 1;
+    string id = 2;
+    string origin = 3;
+    string size = 4;
+    string data = 5;
+}
+
+message Response {
+    string id = 1;
+    string origin = 2;
+    string size = 3;
+    int32 code = 4;
+    string output = 5;
+}
