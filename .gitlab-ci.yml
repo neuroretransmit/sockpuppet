@@ -9,7 +9,7 @@ before_script:
     - git clone https://gitlab.com/optimisticninja/rc6.git
     - git clone https://gitlab.com/optimisticninja/log.git
     - cd rc6 && make && make install
-    - cd ../log && make && make install
+    - cd ../log && make && make install && cd ..
     
 build:
     stage: build
@@ -17,8 +17,6 @@ build:
         - mkdir build && cd build
         - cmake -DCMAKE_BUILD_TYPE=Release ..
         - make
-        - ls && ls tests
-        - ./tests/tests
 
 release:
     stage: release
