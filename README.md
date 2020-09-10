@@ -55,8 +55,13 @@ int main()
 * Protobuf
 * GTest
 * GMock
+* My [log](https://gitlab.com/optimisticninja/log) and [rc6-gcm-siv](https://gitlab.com/optimisticninja/rc6) implementation.
 
 ### The Build
+
+First, install my [log](https://gitlab.com/optimisticninja/log) and [rc6-gcm-siv](https://gitlab.com/optimisticninja/rc6) headers.
+
+Then:
 
 ```bash
 $ mkdir build && cd build # Create and move into build directory
