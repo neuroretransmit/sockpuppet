@@ -17,6 +17,7 @@ build:
         - mkdir build && cd build
         - cmake -DCMAKE_BUILD_TYPE=Release ..
         - make
+        - ls && ls tests
         - ./tests/tests
 
 release:
