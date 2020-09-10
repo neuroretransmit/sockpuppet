@@ -9,9 +9,12 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 
 target_include_directories(client
     PUBLIC
-    ${PROTOBUF_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_BINARY_DIR})
+    ${CMAKE_BINARY_DIR}/proto)
 
+target_include_directories(server
+    PUBLIC
+    ${CMAKE_BINARY_DIR}/proto)
+    
 target_link_libraries(client
     PUBLIC
     ${PROTOBUF_LIBRARIES}

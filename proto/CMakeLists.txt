@@ -21,14 +21,14 @@ target_include_directories(sockproto
 target_link_libraries(sockproto
     PUBLIC
     ${PROTOBUF_LIBRARIES})
-
-configure_file(${CMAKE_CURRENT_BINARY_DIR}/commands.pb.cc ${CMAKE_SOURCE_DIR}/include/sockpuppet/proto/commands.pb.cc COPYONLY)
-configure_file(${CMAKE_CURRENT_BINARY_DIR}/commands.pb.h ${CMAKE_SOURCE_DIR}/include/sockpuppet/proto/commands.pb.h COPYONLY)
-
+# 
+# add_custom_target(CopyAndRename
+#     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/commands.pb.* ${CMAKE_SOURCE_DIR}/include/sockpuppet/proto
+# )
 
 set(PROTOBUF_HDRS 
-    ${CMAKE_SOURCE_DIR}/include/sockpuppet/proto/commands.pb.h PARENT_SCOPE)
+    ${CMAKE_BINARY_DIR}/proto/commands.pb.h PARENT_SCOPE)
 set(PROTOBUF_SRCS 
-    ${CMAKE_SOURCE_DIR}/include/sockpuppet/proto/commands.pb.cc PARENT_SCOPE)
+    ${CMAKE_BINARY_DIR}/proto/commands.pb.cc PARENT_SCOPE)
 
 install(TARGETS sockproto DESTINATION lib)

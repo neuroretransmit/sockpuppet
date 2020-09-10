@@ -21,7 +21,7 @@
 #include <log/log.h>
 #include <rc6/mode/aead.h>
 
-#include "proto/commands.pb.h"
+#include "commands.pb.h"
 
 using std::atomic;
 using std::cerr;

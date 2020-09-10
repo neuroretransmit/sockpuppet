@@ -9,6 +9,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Protobuf REQUIRED)
 install(DIRECTORY ./ DESTINATION include
         FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY $(CMAKE_BINARY_DIR)/proto DESTINATION include
+        FILES_MATCHING PATTERN "*.h")
 
 if (CMAKE_BUILD_TYPE MATCHES "^[Rr]elease")
 	# first we can indicate the documentation build as an option and set it to ON by default

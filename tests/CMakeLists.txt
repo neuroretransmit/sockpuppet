@@ -11,5 +11,4 @@ target_link_libraries(tests ${GTEST_LIBRARIES} ${PROTOBUF_LIBRARIES} gmock gmock
 
 target_include_directories(tests
     PUBLIC
-    ${PROTOBUF_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_BINARY_DIR})
+    ${CMAKE_BINARY_DIR}/proto)

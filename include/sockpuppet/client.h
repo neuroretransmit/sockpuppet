@@ -16,7 +16,7 @@
 #include <log/log.h>
 #include <rc6/mode/aead.h>
 
-#include "proto/commands.pb.h"
+#include "commands.pb.h"
 
 using namespace google::protobuf::io;
 
