@@ -6,6 +6,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <iostream>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -78,8 +79,7 @@ class server
 
     void wait()
     {
-        while (!thread_stopped)
-            ;
+        while (!thread_stopped);
     }
 
   private:
@@ -114,14 +114,38 @@ class server
 
         // Create socket
         if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-            log::error("socket creation failed");
+            log::warn("Socket creation failed, retrying");
+            std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
+            std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
+
+            // Store the time difference between start and end
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
+            
+            while (diff <= 30) {
+                stringstream ss;
+                ss << "Server socket create timeout: " << diff << "s\n";
+                log::info(ss.str());
+                
+                if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+                    continue;
+                else
+                    break;
+                
+                end = std::chrono::system_clock::now();
+                diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
+            }
+            
             exit(1);
         }
 
+        
+        //struct timeval tv;
+        //tv.tv_sec = 30;
+        
         // Set option to put out of band data in the normal input queue
         if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(int)) == -1) ||
             (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*) &optval, sizeof(int)) == -1)) {
-            log::error("unable to set socket options");
+            log::error("Unable to set socket options");
             exit(1);
         }
 
@@ -133,13 +157,13 @@ class server
 
         // Bind socket to IP
         if (bind(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
-            log::error("socket bind failed");
+            log::error("Socket bind failed");
             exit(1);
         }
 
         // Start listener
         if ((listen(sockfd, 10))) {
-            log::error("socket listen failed");
+            log::error("Socket listen failed");
             exit(1);
         }
 
@@ -164,14 +188,14 @@ class server
                 int port = cli.sin_port;
 
                 stringstream ss;
-                ss << "incoming connection: " << addr << ":" << port;
+                ss << "Incoming connection: " << addr << ":" << port;
                 log::info(ss.str());
             }
 
             socket_bytes.clear();
 
             if ((recv_byte_count = recv(connfd, socket_bytes.data(), HEADER_SIZE, MSG_PEEK)) == -1) {
-                log::error("couldn't receive data");
+                log::error("Couldn't receive data");
                 continue;
             } else if (recv_byte_count == 0) {
                 break;
@@ -203,7 +227,7 @@ class server
     {
         size_t recv_size = ((u32*) header.data())[0];
         stringstream ss;
-        ss << "receive size " << recv_size;
+        ss << "Receive size " << recv_size;
         log::data(vector<u8>((u32*) header.data(), (u32*) header.data() + HEADER_SIZE));
         log::info(ss.str());
         return recv_size;
@@ -222,11 +246,11 @@ class server
 
         // Receive data
         if ((bytes_received = recv(connfd, socket_bytes.data(), RECV_SIZE, MSG_WAITALL)) == -1)
-            log::error("failed to receive data");
+            log::error("Failed to receive data");
 
         log::data(socket_bytes);
         stringstream ss;
-        ss << "encrypted size " << RECV_SIZE;
+        ss << "Encrypted size " << RECV_SIZE;
         log::info(ss.str());
 
         // Strip header
@@ -235,7 +259,7 @@ class server
         // Decrypt
         aead.open(without_header, aad);
         ss = stringstream();
-        ss << "decrypted size " << socket_bytes.size();
+        ss << "Decrypted size " << socket_bytes.size();
         log::info(ss.str());
         log::data(socket_bytes);
 

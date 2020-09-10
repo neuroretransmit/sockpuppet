@@ -27,22 +27,52 @@ static const int HEADER_SIZE = sizeof(int);
 class client
 {
   public:
-    client(u16 port = 31337) : sockfd(socket(AF_INET, SOCK_STREAM, 0))
+    client(u16 port = 31337)
     {
+        // Create socket
+        if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+            log::warn("Socket creation failed, waiting for socket to be ready");
+            std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
+            std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
+
+            // Store the time difference between start and end
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
+            
+            while (diff <= 30) {
+                stringstream ss;
+                ss << "Client socket create timeout: " << diff << "s\n";
+                log::info(ss.str());
+                
+                if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+                    continue;
+                else
+                    break;
+                
+                end = std::chrono::system_clock::now();
+                diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
+            }
+            
+            log::error("Timeout waiting for socket creation, terminating");
+            exit(1);
+        }
+        
         if (sockfd == -1) {
-            log::error("socket creation failed");
+            log::error("Socket creation failed");
             exit(1);
         }
         // TODO: Check if port in use
         // TODO: Check if default port or ephemeral
         int optval = 1;
-
+        //struct timeval tv;
+        //tv.tv_sec = 30;
+        
+        // Set option to put out of band data in the normal input queue
         if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(int)) == -1) ||
             (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*) &optval, sizeof(int)) == -1)) {
-            log::error("unable to set socket options");
+            log::error("Unable to set socket options");
             exit(1);
         }
-
+        
         // Assign IP/port
         servaddr.sin_family = AF_INET;
         servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -52,11 +82,33 @@ class client
     void send_request(const Request& request)
     {
         // Connect
+        
         if (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr))) {
-            log::error("connection failed to establish");
+            log::warn("Socket creation failed, retrying");
+            std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
+            std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
+
+            // Store the time difference between start and end
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
+            
+            while (diff <= 30) {
+                stringstream ss;
+                ss << "Connect timeout: " << diff << "s\n";
+                log::info(ss.str());
+                
+                if (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)))
+                    continue;
+                else
+                    break;
+                
+                end = std::chrono::system_clock::now();
+                diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000;
+            }
+            
+            log::error("Timeout reached. Connection failed to establish");
             exit(1);
         } else {
-            log::info("connection established");
+            log::info("Connection established");
         }
 
         AEAD<BlockType::BLOCK_128> aead(KEY);
@@ -75,7 +127,7 @@ class client
         // Encrypt
         log::data(socket_buffer);
         stringstream ss;
-        ss << "decrypted size " << socket_buffer.size();
+        ss << "Decrypted size " << socket_buffer.size();
         log::info(ss.str());
         aead.seal(socket_buffer, aad);
         u32 encrypted_size = socket_buffer.size();
@@ -89,15 +141,15 @@ class client
 
             while (true) {
                 if ((byte_count = send(sockfd, socket_buffer.data(), socket_buffer.size(), 0)) == -1) {
-                    log::error("failed to send data");
+                    log::error("Failed to send data");
                     continue;
                 }
 
                 stringstream ss;
-                ss << "encrypted size " << socket_buffer.size();
+                ss << "Encrypted size " << socket_buffer.size();
                 log::info(ss.str());
                 ss = stringstream();
-                ss << "sent " << byte_count << " bytes";
+                ss << "Sent " << byte_count << " bytes";
                 log::info(ss.str());
                 log::data(socket_buffer);
                 break;
@@ -108,7 +160,7 @@ class client
             log::error(string(e.what()));
         }
 
-        log::info("close socket");
+        log::info("Close socket");
         close(sockfd);
     }
 
