@@ -7,6 +7,21 @@ Header only C++ implementation of encrypted socket communication over TCP/IP usi
 * TCP/IP sockets encrypted with [RC6-GCM-SIV](https://gitlab.com/optimisticninja/rc6)
 * Protobuf for messaging
 
+## Packet Layout
+
+```
+Packet {
+    Header {
+        unsigned little endian 4-byte integer for message size
+    }
+    
+    Encrypted Body {
+        unsigned little endian 4-byte integer for protobuf size
+        protobuf message
+    }
+}
+```
+
 ## Usage
 
 ### Documentation
