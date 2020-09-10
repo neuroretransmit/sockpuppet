@@ -9,7 +9,7 @@ before_script:
     - git clone https://gitlab.com/optimisticninja/rc6.git
     - git clone https://gitlab.com/optimisticninja/log.git
     - cd rc6 && mkdir build && cd build && cmake .. && make && make install
-    - cd ../log && mkdir build && cd build && cmake .. && make && make install && cd ..
+    - cd ../../log && mkdir build && cd build && cmake .. && make && make install && cd ..
     
 build:
     stage: build
