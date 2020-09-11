@@ -87,12 +87,12 @@ $ make                    # Build
 $ sudo make install       # Install headers
 ```
 
-The headers are now in `/usr/local/include/rc6`.
+The headers are now in `/usr/local/include/sockpuppet`.
 
 ### Uninstall
 
 ```bash
-$ sudo rm -rf /usr/local/include/rc6
+$ sudo rm -rf /usr/local/include/sockpuppet
 ```
 
 ## Running (from `build/` folder)
