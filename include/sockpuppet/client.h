@@ -28,9 +28,14 @@ using std::chrono::time_point;
 
 namespace sockpuppet
 {
+    /// RC6 encrypted socket client using protobuf. (Inherits non-blocking behavior from server)
     class client
     {
       public:
+        /**
+         * Constructor for socket client
+         * @param port: TCP port to connect to on server
+         */
         client(u16 port = 31337)
         {
             // Create socket
@@ -53,7 +58,7 @@ namespace sockpuppet
             servaddr.sin_port = htons(port);
         }
 
-        void send_request(const Request& request)
+        void socket_connect()
         {
             // Connect
             time_point<system_clock> start = system_clock::now();
@@ -77,31 +82,42 @@ namespace sockpuppet
 
             log::info("--- SEND ---");
             log::info("Connection established");
+        }
 
-            AEAD<BlockType::BLOCK_128> aead(KEY);
-            vector<u8> aad(255, 0);
-
-            // Construct packet with leading header for size
-            size_t size = request.ByteSizeLong() + HEADER_SIZE;
-            vector<u8> socket_buffer(size);
-
+        void create_request(const Request& request, vector<u8>& socket_buffer, size_t size)
+        {
             // Serialize object to vector of bytes
             ArrayOutputStream aos(socket_buffer.data(), size);
             CodedOutputStream coded_output = CodedOutputStream(&aos);
             coded_output.WriteVarint32(request.ByteSizeLong());
             request.SerializeToCodedStream(&coded_output);
+        }
 
-            // Encrypt
+        void send_request(const Request& request)
+        {
+            size_t size = request.ByteSizeLong() + HEADER_SIZE;
+            vector<u8> socket_buffer(size);
+
+            socket_connect();
+            create_request(request, socket_buffer, size);
+
+            // Encrypt request
+            const vector<u8> KEY = vector<u8>(32, 0);
+            AEAD<BlockType::BLOCK_128> aead = AEAD<BlockType::BLOCK_128>(KEY);
             aead.seal(socket_buffer, aad);
+
+            // Read size as little-endian bytes
             u32 encrypted_size = socket_buffer.size();
             u8* encrypted_size_bytes = (u8*) &encrypted_size;
 
+            // Insert encryption size header
             for (int i = HEADER_SIZE - 1; i >= 0; i--)
                 socket_buffer.insert(socket_buffer.begin(), encrypted_size_bytes[i]);
 
             try {
                 int byte_count;
 
+                // Send data
                 while (true) {
                     if ((byte_count = send(sockfd, socket_buffer.data(), socket_buffer.size(), 0)) == -1) {
                         log::error("Failed to send data");
@@ -123,9 +139,9 @@ namespace sockpuppet
 
       private:
         // TODO: Remove key and use B-MQKD for key exchange
-        const vector<u8> KEY = vector<u8>(32, 0);
-        const size_t HEADER_SIZE = sizeof(u32);
+        vector<u8> aad = vector<u8>(255, 0);
 
+        const size_t HEADER_SIZE = sizeof(u32);
         int sockfd;
         struct sockaddr_in servaddr;
     };
