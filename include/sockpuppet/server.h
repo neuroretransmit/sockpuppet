@@ -38,10 +38,10 @@ using namespace google::protobuf::io;
 /// RC6 encrypted socket server using protobuf
 namespace sockpuppet
 {
-    class blocking
+    class server
     {
       public:
-        blocking(u16 port = 31337) : port(port) {}
+        server(u16 port = 31337) : port(port) {}
 
         void start() { handle(); }
 

@@ -1,4 +1,4 @@
-#include "sockpuppet/blocking.h"
+#include "sockpuppet/server.h"
 
 int main(int argc, char** argv)
 {
@@ -8,6 +8,6 @@ int main(int argc, char** argv)
     }
 
     int port = atoi(argv[1]);
-    sockpuppet::blocking s(port);
+    sockpuppet::server s(port);
     s.start();
 }

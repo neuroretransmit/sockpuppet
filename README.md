@@ -1,6 +1,6 @@
 # sockpuppet
 
-Header only C++ implementation of encrypted socket communication over TCP/IP using [RC6-GCM-SIV](https://gitlab.com/optimisticninja/rc6)/protobuf for messages.
+Header only C++ implementation of encrypted non-blocking socket communication over TCP/IP using [RC6-GCM-SIV](https://gitlab.com/optimisticninja/rc6) for encryption/protobuf for messages.
 
 ## Features
 
@@ -32,15 +32,15 @@ Doxygen generated files are in [`doc/latex`](doc/latex) and [`doc/html`](doc/htm
 
 Secure TCP/IP socket communications with quantum-proof handshake negotiation.
 
-#### Server (Blocking)
+#### Server (Non-Blocking)
 
 ```cpp
 #include <sockpuppet/server.h>
 
 int main()
 {
-    sockpuppet::blocking server(31337);
-    server.start(); // or s.start_detached() to run in background
+    sockpuppet::server serv(31337);
+    serv.start(); // or s.start_detached() to run in background
     
     // and execute code down here
 }

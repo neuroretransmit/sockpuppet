@@ -4,8 +4,8 @@
 #include <chrono>
 #include <thread>
 
-#include "sockpuppet/blocking.h"
 #include "sockpuppet/client.h"
+#include "sockpuppet/server.h"
 
 using namespace ::testing;
 
@@ -20,7 +20,7 @@ TEST(SockPuppet, ClientToServerExit)
     request.set_origin("127.0.0.1");
 
     // Start in detached mode so below code can run
-    sockpuppet::blocking serv(port);
+    sockpuppet::server serv(port);
     serv.start_detached();
 
     sockpuppet::client c(port);

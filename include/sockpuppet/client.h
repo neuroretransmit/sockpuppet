@@ -24,10 +24,6 @@ using std::chrono::milliseconds;
 using std::chrono::system_clock;
 using std::chrono::time_point;
 
-// TODO: Remove me and create handshake for key negotiation
-static const vector<u8> KEY(32, 0);
-static const int HEADER_SIZE = sizeof(int);
-
 // TODO: Support/deduce IPv4/6
 
 namespace sockpuppet

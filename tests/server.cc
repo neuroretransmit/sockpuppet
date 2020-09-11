@@ -4,8 +4,8 @@
 #include <chrono>
 #include <thread>
 
-#include "sockpuppet/blocking.h"
 #include "sockpuppet/client.h"
+#include "sockpuppet/server.h"
 
 using namespace ::testing;
 
@@ -13,7 +13,7 @@ TEST(SockPuppet, StopDetached)
 {
     u16 port = 30000 + (std::rand() % (30000 - 31000 + 1));
     // Start in detached mode so below code can run
-    sockpuppet::blocking serv(port);
+    sockpuppet::server serv(port);
     serv.start_detached();
     serv.stop();
 
