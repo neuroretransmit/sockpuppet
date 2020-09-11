@@ -35,9 +35,9 @@ using namespace google::protobuf::io;
 // TODO: Support/deduce IPv6
 // TODO: Non-blocking/select
 
-/// RC6 encrypted socket server using protobuf
 namespace sockpuppet
 {
+    /// RC6 encrypted non-blocking socket server using protobuf
     class server
     {
       public:
@@ -184,6 +184,12 @@ namespace sockpuppet
             return sockfd;
         }
 
+        /**
+         * Close connection and adjust master set
+         * @param connfd: connection file descriptor
+         * @param fdmax: reference to file descriptor max
+         * @param master_set: reference to file descriptor master set
+         */
         static void socket_close(int connfd, int& fdmax, fd_set& master_set)
         {
             close(connfd);
@@ -338,8 +344,18 @@ namespace sockpuppet
             } while (!server_exit);
         }
 
+        /**
+         * Read 4 byte unsigned integer noting data size from packet header
+         * @param header: header bytes
+         */
         static size_t read_size_header(const vector<u8>& header) { return ((u32*) header.data())[0]; }
 
+        /**
+         * Decrypt/read protobuf message from packet
+         * @param connfd: connection file descriptor
+         * @param size: encoded protobuf header
+         * @param request: output object for protobuf message
+         */
         static int read_body(int connfd, google::protobuf::uint32 size, Request& request)
         {
             // TODO: Remove me and create handshake for key negotiation
