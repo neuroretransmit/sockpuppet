@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <string>
 
 #include <rc6/types.h>
@@ -20,8 +21,8 @@ class b64
         int i = 0, j = 0;
         unsigned char chunk3b[3], chunk4b[4];
         size_t bytes_len = bytes.size();
-
         size_t k = 0;
+
         while (bytes_len--) {
             chunk3b[i++] = bytes[k++];
 

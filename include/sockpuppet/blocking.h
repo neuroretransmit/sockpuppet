@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 #include <atomic>
+#include <cerrno>
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -9,6 +10,7 @@
 #include <iostream>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <thread>
@@ -30,7 +32,7 @@ using std::thread;
 
 using namespace google::protobuf::io;
 
-// TODO: Support/deduce IPv4/6
+// TODO: Support/deduce IPv6
 // TODO: Non-blocking/select
 
 /// RC6 encrypted socket server using protobuf
@@ -119,8 +121,9 @@ namespace sockpuppet
             int sockfd;
 
             // Create socket
-            if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-                log::error("Failed to create socket, terminating");
+            if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+                perror("Failed to create socket, socket() failed. Terminating");
+                // log::error("Failed to create socket (perror: %d), terminating",);
                 exit(1);
             }
 
@@ -128,7 +131,16 @@ namespace sockpuppet
             if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(int)) == -1) ||
                 (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*) &optval, sizeof(int)) == -1)) {
                 log::error("Unable to set socket options");
+                close(sockfd);
                 exit(1);
+            }
+
+            // Set socket to non-blocking
+            int on = 1;
+            if (ioctl(sockfd, FIONBIO, (char*) &on) < 0) {
+                perror("ioctl() failed");
+                close(sockfd);
+                exit(-1);
             }
 
             // Assign IP/port
@@ -138,63 +150,193 @@ namespace sockpuppet
             servaddr.sin_port = htons(port);
 
             // Bind socket to IP
-            if (bind(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
+            if (bind(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0) {
                 log::error("Socket bind failed");
+                close(sockfd);
                 exit(1);
             }
 
+            // TODO: What is 32?
             // Start listener
-            if ((listen(sockfd, 10))) {
+            if ((listen(sockfd, 32))) {
                 log::error("Socket listen failed");
+                close(sockfd);
                 exit(1);
             }
 
             log::info("Listening on port %d...", port);
 
+            /*************************************************************/
+            /* Initialize the master fd_set                              */
+            /*************************************************************/
+            int max_sd, new_sd;
+            fd_set master_set, working_set;
+            struct timeval timeout;
+            int descriptor_ready;
+            bool close_conn;
+            FD_ZERO(&master_set);
+            max_sd = sockfd;
+            FD_SET(sockfd, &master_set);
+            timeout.tv_sec = 3 * 60;
+            timeout.tv_usec = 0;
+
             struct sockaddr_in cli;
             vector<u8> socket_bytes(HEADER_SIZE);
             socklen_t len;
             int recv_byte_count = 0;
-            int connfd;
+            // int connfd;
             bool exit = false;
 
             len = sizeof(cli);
 
-            while (!exit) {
-                if ((connfd = accept(sockfd, (struct sockaddr*) &cli, &len)) != -1) {
-                    log::info("--- RECV ---");
-                    struct in_addr client_ip = cli.sin_addr;
-                    char* addr = inet_ntoa(client_ip);
-                    int port = cli.sin_port;
-                    log::info("Incoming connection: %s:%d", addr, port);
-                }
+            do {
+                memcpy(&working_set, &master_set, sizeof(master_set));
+                log::info("Waiting on select()...");
 
-                socket_bytes.clear();
-
-                if ((recv_byte_count = recv(connfd, socket_bytes.data(), HEADER_SIZE, MSG_PEEK)) == -1) {
-                    log::error("Couldn't receive data");
-                    continue;
-                } else if (recv_byte_count == 0) {
+                /**********************************************************/
+                /* Check to see if the select call failed.                */
+                /**********************************************************/
+                int rc = 0;
+                if ((rc = select(max_sd + 1, &working_set, NULL, NULL, &timeout)) < 0) {
+                    perror("select() failed");
                     break;
                 }
 
-                Request request = read_body(connfd, read_size_header(socket_bytes));
-
-                switch (request.type()) {
-                case DOWNLOAD:
-                    log::info("Download command");
-                    break;
-                case EXIT:
-                    log::info("Exit command. Terminating");
-                    exit = true;
-                    break;
-                case RUN_COMMAND:
-                    log::info("Run command");
-                    break;
-                default:
+                if (rc == 0) {
+                    log::error("select() timed out. Terminating");
                     break;
                 }
-            }
+
+                descriptor_ready = rc;
+                for (int i = 0; i <= max_sd && descriptor_ready > 0; i++) {
+                    if (FD_ISSET(i, &working_set)) {
+                        descriptor_ready -= 1;
+
+                        // Check if listening socket
+                        if (i == sockfd) {
+                            log::info("Listening socket is readable");
+
+                            do {
+                                // Accept each incoming connection. Failure with EWOULDBLOCK means all were
+                                // accepted, other failures terminate the server.
+
+                                new_sd = accept(sockfd, NULL, NULL);
+
+                                if (new_sd < 0) {
+                                    if (errno != EWOULDBLOCK) {
+                                        perror("accept() failed");
+                                        exit = true;
+                                    }
+
+                                    break;
+                                }
+
+                                /**********************************************/
+                                /* Add the new incoming connection to the     */
+                                /* master read set                            */
+                                /**********************************************/
+                                log::info("New incoming connection - %d", new_sd);
+                                FD_SET(new_sd, &master_set);
+
+                                if (new_sd > max_sd)
+                                    max_sd = new_sd;
+
+                                /**********************************************/
+                                /* Loop back up and accept another incoming   */
+                                /* connection                                 */
+                                /**********************************************/
+                            } while (new_sd != -1);
+                        } else {
+                            log::info("Descriptor %d is readable", i);
+                            close_conn = false;
+                            /*************************************************/
+                            /* Receive all incoming data on this socket      */
+                            /* before we loop back and call select again.    */
+                            /*************************************************/
+                            do {
+                                socket_bytes.clear();
+
+                                // Read header
+                                if ((recv_byte_count = recv(i, socket_bytes.data(), HEADER_SIZE, MSG_PEEK)) ==
+                                    -1) {
+                                    log::error("Couldn't receive data");
+                                    continue;
+                                } else if (recv_byte_count == 0) {
+                                    break;
+                                }
+
+                                // Read body and get protobuf request
+                                Request request;
+                                int rc = read_body(i, read_size_header(socket_bytes), request);
+
+                                /**********************************************/
+                                /* Check to see if the connection has been    */
+                                /* closed by the client                       */
+                                /**********************************************/
+                                if (rc == -1) {
+                                    log::info("Connection closed");
+                                    close_conn = true;
+                                    break;
+                                }
+
+                                // Handle request
+                                switch (request.type()) {
+                                case DOWNLOAD:
+                                    log::info("Download command");
+                                    break;
+                                case EXIT:
+                                    log::info("Exit command. Terminating");
+                                    exit = true;
+                                    break;
+                                case RUN_COMMAND:
+                                    log::info("Run command");
+                                    break;
+                                default:
+                                    break;
+                                }
+
+                                /**********************************************/
+                                /* Data was received                          */
+                                /**********************************************/
+                                len = rc;
+                                log::info("%d bytes received", len);
+
+                                /**********************************************/
+                                /* Echo the data back to the client           */
+                                /**********************************************/
+                                rc = send(i, socket_bytes.data(), len, 0);
+
+                                if (rc < 0) {
+                                    perror("  send() failed");
+                                    close_conn = true;
+                                    break;
+                                }
+
+                            } while (true);
+
+                            /*************************************************/
+                            /* If the close_conn flag was turned on, we need */
+                            /* to clean up this active connection.  This     */
+                            /* clean up process includes removing the        */
+                            /* descriptor from the master set and            */
+                            /* determining the new maximum descriptor value  */
+                            /* based on the bits that are still turned on in */
+                            /* the master set.                               */
+                            /*************************************************/
+                            if (close_conn) {
+                                close(i);
+                                FD_CLR(i, &master_set);
+
+                                if (i == max_sd) {
+                                    while (FD_ISSET(max_sd, &master_set) == false)
+                                        max_sd -= 1;
+                                }
+                            }
+                        } /* End of existing connection is readable */
+                    }     /* End of if (FD_ISSET(i, &working_set)) */
+                }         /* End of loop through selectable descriptors */
+
+            } while (!exit);
 
             log::info("close socket");
             close(sockfd);
@@ -202,7 +344,7 @@ namespace sockpuppet
 
         static size_t read_size_header(const vector<u8>& header) { return ((u32*) header.data())[0]; }
 
-        static Request read_body(int connfd, google::protobuf::uint32 size)
+        static int read_body(int connfd, google::protobuf::uint32 size, Request& request)
         {
             // TODO: Remove me and create handshake for key negotiation
             const vector<u8> KEY(32, 0);
@@ -214,8 +356,12 @@ namespace sockpuppet
             vector<u8> socket_bytes(RECV_SIZE);
 
             // Receive data
-            if ((bytes_received = recv(connfd, socket_bytes.data(), RECV_SIZE, MSG_WAITALL)) == -1)
-                log::error("Failed to receive data");
+            if ((bytes_received = recv(connfd, socket_bytes.data(), socket_bytes.size(), 0)) < 0) {
+                if (errno != EWOULDBLOCK) {
+                    perror("recv() failed");
+                    return -1;
+                }
+            }
 
             log::info("Received %lu bytes", RECV_SIZE);
 
@@ -225,8 +371,6 @@ namespace sockpuppet
             // Decrypt
             aead.open(without_header, aad);
 
-            Request request;
-
             // Deserialize
             ArrayInputStream ais(without_header.data(), RECV_SIZE);
             CodedInputStream coded_input(&ais);
@@ -235,7 +379,8 @@ namespace sockpuppet
             request.ParseFromCodedStream(&coded_input);
             coded_input.PopLimit(message_limit);
             log::info("\n\n%s", request.DebugString().c_str());
-            return request;
+
+            return bytes_received;
         }
     };
 } // namespace sockpuppet

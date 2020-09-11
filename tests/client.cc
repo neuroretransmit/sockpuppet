@@ -30,5 +30,4 @@ TEST(SockPuppet, ClientToServerExit)
     serv.wait();
 
     ASSERT_TRUE(serv.is_stopped());
-    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
 }

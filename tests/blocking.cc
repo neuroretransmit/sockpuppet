@@ -18,5 +18,4 @@ TEST(SockPuppet, StopDetached)
     serv.stop();
 
     ASSERT_TRUE(serv.is_stopped());
-    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 }

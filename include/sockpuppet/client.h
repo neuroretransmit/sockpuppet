@@ -19,13 +19,16 @@
 #include "commands.pb.h"
 
 using namespace google::protobuf::io;
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::system_clock;
+using std::chrono::time_point;
 
 // TODO: Remove me and create handshake for key negotiation
 static const vector<u8> KEY(32, 0);
 static const int HEADER_SIZE = sizeof(int);
 
 // TODO: Support/deduce IPv4/6
-// TODO: Non-blocking/select
 
 namespace sockpuppet
 {
@@ -40,15 +43,8 @@ namespace sockpuppet
                 exit(1);
             }
 
-            if (sockfd == -1) {
-                log::error("Socket creation failed");
-                exit(1);
-            }
-            // TODO: Check if port in use
-            // TODO: Check if default port or ephemeral
-            int optval = 1;
-
             // Set option to put out of band data in the normal input queue
+            int optval = 1;
             if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(int)) == -1) ||
                 (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*) &optval, sizeof(int)) == -1)) {
                 log::error("Unable to set socket options");
@@ -64,13 +60,27 @@ namespace sockpuppet
         void send_request(const Request& request)
         {
             // Connect
-            if (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr))) {
-                log::error("Timeout reached. Connection failed to establish");
-                exit(1);
-            } else {
-                log::info("--- SEND ---");
-                log::info("Connection established");
+            time_point<system_clock> start = system_clock::now();
+            time_point<system_clock> end;
+            auto millis = duration_cast<milliseconds>(end - start);
+
+            log::info("Attempting to connect...");
+
+            // While unable to connect and timeout < 30s
+            while (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) &&
+                   (millis.count() / 1000) < 30) {
+                end = system_clock::now();
+                millis = duration_cast<milliseconds>(end - start);
             }
+
+            // Timeout reached
+            if ((millis.count() / 1000) >= 30) {
+                log::error("connect() timeout, terminating.");
+                exit(1);
+            }
+
+            log::info("--- SEND ---");
+            log::info("Connection established");
 
             AEAD<BlockType::BLOCK_128> aead(KEY);
             vector<u8> aad(255, 0);
