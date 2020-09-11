@@ -41,10 +41,16 @@ namespace sockpuppet
     class server
     {
       public:
+        /**
+         * Constructor for socket server
+         * @param port: TCP port to listen on
+         */
         server(u16 port = 31337) : port(port) {}
 
+        /** Start server */
         void start() { handle(); }
 
+        /** Stop server */
         void stop()
         {
             if (!detached) {
@@ -60,10 +66,13 @@ namespace sockpuppet
             wait();
         }
 
+        /** Start server detached */
         void start_detached() { handle(true); }
 
+        /** Check if server is stopped */
         bool is_stopped() const { return thread_stopped; }
 
+        /** Wait for server to stop */
         void wait()
         {
             while (!thread_stopped)
@@ -77,6 +86,9 @@ namespace sockpuppet
         atomic<bool> thread_stopped = atomic<bool>(true);
         static const int HEADER_SIZE = sizeof(u32);
 
+        /** Main handler that spawns server thread
+         * @param detached: detach from server and leave running on thread
+         */
         void handle(bool detached = false)
         {
             this->detached = detached;
@@ -97,6 +109,10 @@ namespace sockpuppet
             }
         }
 
+        /**
+         * Handle CTRL+C event
+         * @param sig: signal
+         */
         static void sigint_handler(int sig)
         {
             char c;
@@ -112,13 +128,13 @@ namespace sockpuppet
         }
 
         /**
-         * Handler for incoming requests executed on its own thread
-         * @param port: server listening port
+         * Start listening on socket
+         * @param port: TCP Port to listen on
          */
-        static void socket_handler(u16 port)
+        static int socket_listen(int port)
         {
-            int optval = 1;
             int sockfd;
+            int optval = 1;
 
             // Create socket
             if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -165,100 +181,106 @@ namespace sockpuppet
             }
 
             log::info("Listening on port %d...", port);
+            return sockfd;
+        }
 
-            /*************************************************************/
-            /* Initialize the master fd_set                              */
-            /*************************************************************/
-            int max_sd, new_sd;
-            fd_set master_set, working_set;
-            struct timeval timeout;
+        static void socket_close(int connfd, int& fdmax, fd_set& master_set)
+        {
+            close(connfd);
+            FD_CLR(connfd, &master_set);
+
+            if (connfd == fdmax) {
+                while (FD_ISSET(fdmax, &master_set) == false)
+                    fdmax -= 1;
+            }
+
+            log::info("socket close");
+        }
+
+        /**
+         * Handler for incoming requests executed on its own thread
+         * @param port: server listening port
+         */
+        static void socket_handler(u16 port)
+        {
+            int fdmax, newfd;
             int descriptor_ready;
-            bool close_conn;
-            FD_ZERO(&master_set);
-            max_sd = sockfd;
-            FD_SET(sockfd, &master_set);
-            timeout.tv_sec = 3 * 60;
-            timeout.tv_usec = 0;
-
+            int recv_byte_count = 0;
+            fd_set master_set, working_set;
             struct sockaddr_in cli;
+            struct timeval timeout;
             vector<u8> socket_bytes(HEADER_SIZE);
             socklen_t len;
-            int recv_byte_count = 0;
-            // int connfd;
-            bool exit = false;
+            bool close_conn = false;
+            bool server_exit = false;
 
+            // Listen
+            int sockfd = socket_listen(port);
+
+            // Initialize master set
+            FD_ZERO(&master_set);
+            fdmax = sockfd;
+            FD_SET(sockfd, &master_set);
+
+            // Set 3 minute timeout
+            timeout.tv_sec = 3 * 60;
+            timeout.tv_usec = 0;
             len = sizeof(cli);
 
             do {
                 memcpy(&working_set, &master_set, sizeof(master_set));
                 log::info("Waiting on select()...");
 
-                /**********************************************************/
-                /* Check to see if the select call failed.                */
-                /**********************************************************/
                 int rc = 0;
-                if ((rc = select(max_sd + 1, &working_set, NULL, NULL, &timeout)) < 0) {
+                if ((rc = select(fdmax + 1, &working_set, NULL, NULL, &timeout)) < 0) {
                     perror("select() failed");
                     break;
-                }
-
-                if (rc == 0) {
+                } else if (rc == 0) {
                     log::error("select() timed out. Terminating");
                     break;
                 }
 
                 descriptor_ready = rc;
-                for (int i = 0; i <= max_sd && descriptor_ready > 0; i++) {
-                    if (FD_ISSET(i, &working_set)) {
+                for (int connfd = 0; connfd <= fdmax && descriptor_ready > 0; connfd++) {
+                    if (FD_ISSET(connfd, &working_set)) {
                         descriptor_ready -= 1;
 
-                        // Check if listening socket
-                        if (i == sockfd) {
+                        // If listening socket
+                        if (connfd == sockfd) {
                             log::info("Listening socket is readable");
 
                             do {
-                                // Accept each incoming connection. Failure with EWOULDBLOCK means all were
-                                // accepted, other failures terminate the server.
+                                // Accept each incoming connection.
+                                newfd = accept(sockfd, NULL, NULL);
 
-                                new_sd = accept(sockfd, NULL, NULL);
-
-                                if (new_sd < 0) {
+                                if (newfd < 0) {
+                                    // EWOULDBLOCK means all were accepted,
+                                    // other failures terminate the server.
                                     if (errno != EWOULDBLOCK) {
                                         perror("accept() failed");
-                                        exit = true;
+                                        server_exit = true;
                                     }
 
                                     break;
                                 }
 
-                                /**********************************************/
-                                /* Add the new incoming connection to the     */
-                                /* master read set                            */
-                                /**********************************************/
-                                log::info("New incoming connection - %d", new_sd);
-                                FD_SET(new_sd, &master_set);
+                                // Add incoming connection to master set
+                                log::info("New incoming connection - %d", newfd);
+                                FD_SET(newfd, &master_set);
 
-                                if (new_sd > max_sd)
-                                    max_sd = new_sd;
-
-                                /**********************************************/
-                                /* Loop back up and accept another incoming   */
-                                /* connection                                 */
-                                /**********************************************/
-                            } while (new_sd != -1);
+                                if (newfd > fdmax)
+                                    fdmax = newfd;
+                            } while (newfd != -1);
                         } else {
-                            log::info("Descriptor %d is readable", i);
+                            log::info("Descriptor %d is readable", connfd);
                             close_conn = false;
-                            /*************************************************/
-                            /* Receive all incoming data on this socket      */
-                            /* before we loop back and call select again.    */
-                            /*************************************************/
+
                             do {
                                 socket_bytes.clear();
 
                                 // Read header
-                                if ((recv_byte_count = recv(i, socket_bytes.data(), HEADER_SIZE, MSG_PEEK)) ==
-                                    -1) {
+                                if ((recv_byte_count =
+                                         recv(connfd, socket_bytes.data(), HEADER_SIZE, MSG_PEEK)) == -1) {
                                     log::error("Couldn't receive data");
                                     continue;
                                 } else if (recv_byte_count == 0) {
@@ -267,12 +289,9 @@ namespace sockpuppet
 
                                 // Read body and get protobuf request
                                 Request request;
-                                int rc = read_body(i, read_size_header(socket_bytes), request);
+                                int rc = read_body(connfd, read_size_header(socket_bytes), request);
 
-                                /**********************************************/
-                                /* Check to see if the connection has been    */
-                                /* closed by the client                       */
-                                /**********************************************/
+                                // See if connection closed by client
                                 if (rc == -1) {
                                     log::info("Connection closed");
                                     close_conn = true;
@@ -286,7 +305,7 @@ namespace sockpuppet
                                     break;
                                 case EXIT:
                                     log::info("Exit command. Terminating");
-                                    exit = true;
+                                    server_exit = true;
                                     break;
                                 case RUN_COMMAND:
                                     log::info("Run command");
@@ -295,16 +314,11 @@ namespace sockpuppet
                                     break;
                                 }
 
-                                /**********************************************/
-                                /* Data was received                          */
-                                /**********************************************/
                                 len = rc;
                                 log::info("%d bytes received", len);
 
-                                /**********************************************/
-                                /* Echo the data back to the client           */
-                                /**********************************************/
-                                rc = send(i, socket_bytes.data(), len, 0);
+                                // TODO: Add response or don't echo back.
+                                rc = send(connfd, socket_bytes.data(), len, 0);
 
                                 if (rc < 0) {
                                     perror("  send() failed");
@@ -314,32 +328,14 @@ namespace sockpuppet
 
                             } while (true);
 
-                            /*************************************************/
-                            /* If the close_conn flag was turned on, we need */
-                            /* to clean up this active connection.  This     */
-                            /* clean up process includes removing the        */
-                            /* descriptor from the master set and            */
-                            /* determining the new maximum descriptor value  */
-                            /* based on the bits that are still turned on in */
-                            /* the master set.                               */
-                            /*************************************************/
-                            if (close_conn) {
-                                close(i);
-                                FD_CLR(i, &master_set);
+                            // Cleanup connections
+                            if (close_conn)
+                                socket_close(connfd, fdmax, master_set);
+                        } // END existing connection is readable
+                    }     // END (FD_ISSET(i, &working_set))
+                }         // END loop through selectable descriptors
 
-                                if (i == max_sd) {
-                                    while (FD_ISSET(max_sd, &master_set) == false)
-                                        max_sd -= 1;
-                                }
-                            }
-                        } /* End of existing connection is readable */
-                    }     /* End of if (FD_ISSET(i, &working_set)) */
-                }         /* End of loop through selectable descriptors */
-
-            } while (!exit);
-
-            log::info("close socket");
-            close(sockfd);
+            } while (!server_exit);
         }
 
         static size_t read_size_header(const vector<u8>& header) { return ((u32*) header.data())[0]; }
@@ -348,12 +344,11 @@ namespace sockpuppet
         {
             // TODO: Remove me and create handshake for key negotiation
             const vector<u8> KEY(32, 0);
+            const size_t RECV_SIZE = size + HEADER_SIZE;
             AEAD<BlockType::BLOCK_128> aead(KEY);
             vector<u8> aad(255, 0);
-
-            int bytes_received = 0;
-            const size_t RECV_SIZE = size + HEADER_SIZE;
             vector<u8> socket_bytes(RECV_SIZE);
+            int bytes_received = 0;
 
             // Receive data
             if ((bytes_received = recv(connfd, socket_bytes.data(), socket_bytes.size(), 0)) < 0) {
