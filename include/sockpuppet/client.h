@@ -58,41 +58,10 @@ namespace sockpuppet
             servaddr.sin_port = htons(port);
         }
 
-        void socket_connect()
-        {
-            // Connect
-            time_point<system_clock> start = system_clock::now();
-            time_point<system_clock> end;
-            auto millis = duration_cast<milliseconds>(end - start);
-
-            log::info("Attempting to connect...");
-
-            // While unable to connect and timeout < 30s
-            while (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) &&
-                   (millis.count() / 1000) < 30) {
-                end = system_clock::now();
-                millis = duration_cast<milliseconds>(end - start);
-            }
-
-            // Timeout reached
-            if ((millis.count() / 1000) >= 30) {
-                log::error("connect() timeout, terminating.");
-                exit(1);
-            }
-
-            log::info("--- SEND ---");
-            log::info("Connection established");
-        }
-
-        void create_request(const Request& request, vector<u8>& socket_buffer, size_t size)
-        {
-            // Serialize object to vector of bytes
-            ArrayOutputStream aos(socket_buffer.data(), size);
-            CodedOutputStream coded_output = CodedOutputStream(&aos);
-            coded_output.WriteVarint32(request.ByteSizeLong());
-            request.SerializeToCodedStream(&coded_output);
-        }
-
+        /**
+         * Send request to server
+         * @param request: protobuf message
+         */
         void send_request(const Request& request)
         {
             size_t size = request.ByteSizeLong() + HEADER_SIZE;
@@ -144,5 +113,47 @@ namespace sockpuppet
         const size_t HEADER_SIZE = sizeof(u32);
         int sockfd;
         struct sockaddr_in servaddr;
+
+        /// Connect to socket
+        void socket_connect()
+        {
+            // Connect
+            time_point<system_clock> start = system_clock::now();
+            time_point<system_clock> end;
+            auto millis = duration_cast<milliseconds>(end - start);
+
+            log::info("Attempting to connect...");
+
+            // While unable to connect and timeout < 30s
+            while (connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) &&
+                   (millis.count() / 1000) < 30) {
+                end = system_clock::now();
+                millis = duration_cast<milliseconds>(end - start);
+            }
+
+            // Timeout reached
+            if ((millis.count() / 1000) >= 30) {
+                log::error("connect() timeout, terminating.");
+                exit(1);
+            }
+
+            log::info("--- SEND ---");
+            log::info("Connection established");
+        }
+
+        /**
+         * Serialize request to vector of bytes
+         * @param request: protobuf message
+         * @param socket_buffer: vector of bytes for output
+         * @param size: byte size of output
+         */
+        void create_request(const Request& request, vector<u8>& socket_buffer, size_t size)
+        {
+            // Serialize object to vector of bytes
+            ArrayOutputStream aos(socket_buffer.data(), size);
+            CodedOutputStream coded_output = CodedOutputStream(&aos);
+            coded_output.WriteVarint32(request.ByteSizeLong());
+            request.SerializeToCodedStream(&coded_output);
+        }
     };
 } // namespace sockpuppet
