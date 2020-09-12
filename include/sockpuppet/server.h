@@ -33,8 +33,6 @@ using std::thread;
 using namespace google::protobuf::io;
 
 // TODO: Support/deduce IPv6
-// TODO: Non-blocking/select
-
 namespace sockpuppet
 {
     /// RC6 encrypted non-blocking socket server using protobuf
@@ -209,7 +207,8 @@ namespace sockpuppet
          */
         static void socket_handler(u16 port)
         {
-            int fdmax, newfd;
+            int socket_return_code = 0;
+            int file_descriptor_max, new_file_descriptor;
             int descriptor_ready;
             int recv_byte_count = 0;
             fd_set master_set, working_set;
@@ -225,7 +224,7 @@ namespace sockpuppet
 
             // Initialize master set
             FD_ZERO(&master_set);
-            fdmax = sockfd;
+            file_descriptor_max = sockfd;
             FD_SET(sockfd, &master_set);
 
             // Set 3 minute timeout
@@ -237,17 +236,17 @@ namespace sockpuppet
                 memcpy(&working_set, &master_set, sizeof(master_set));
                 log::info("Waiting on select()...");
 
-                int rc = 0;
-                if ((rc = select(fdmax + 1, &working_set, NULL, NULL, &timeout)) < 0) {
+                if ((socket_return_code =
+                         select(file_descriptor_max + 1, &working_set, NULL, NULL, &timeout)) < 0) {
                     perror("select() failed");
                     break;
-                } else if (rc == 0) {
+                } else if (socket_return_code == 0) {
                     log::error("select() timed out. Terminating");
                     break;
                 }
 
-                descriptor_ready = rc;
-                for (int connfd = 0; connfd <= fdmax && descriptor_ready > 0; connfd++) {
+                descriptor_ready = socket_return_code;
+                for (int connfd = 0; connfd <= file_descriptor_max && descriptor_ready > 0; connfd++) {
                     if (FD_ISSET(connfd, &working_set)) {
                         descriptor_ready -= 1;
 
@@ -257,9 +256,9 @@ namespace sockpuppet
 
                             do {
                                 // Accept each incoming connection.
-                                newfd = accept(sockfd, NULL, NULL);
+                                new_file_descriptor = accept(sockfd, NULL, NULL);
 
-                                if (newfd < 0) {
+                                if (new_file_descriptor < 0) {
                                     // EWOULDBLOCK means all were accepted,
                                     // other failures terminate the server.
                                     if (errno != EWOULDBLOCK) {
@@ -271,17 +270,17 @@ namespace sockpuppet
                                 }
 
                                 // Add incoming connection to master set
-                                log::info("New incoming connection - %d", newfd);
-                                FD_SET(newfd, &master_set);
+                                log::info("New incoming connection - %d", new_file_descriptor);
+                                FD_SET(new_file_descriptor, &master_set);
 
-                                if (newfd > fdmax)
-                                    fdmax = newfd;
-                            } while (newfd != -1);
+                                if (new_file_descriptor > file_descriptor_max)
+                                    file_descriptor_max = new_file_descriptor;
+                            } while (new_file_descriptor != -1);
                         } else {
                             log::info("Descriptor %d is readable", connfd);
                             close_conn = false;
 
-                            do {
+                            while (true) {
                                 socket_bytes.clear();
 
                                 // Read header
@@ -304,39 +303,22 @@ namespace sockpuppet
                                     break;
                                 }
 
-                                // Handle request
-                                switch (request.type()) {
-                                case DOWNLOAD:
-                                    log::info("Download command");
-                                    break;
-                                case EXIT:
-                                    log::info("Exit command. Terminating");
-                                    server_exit = true;
-                                    break;
-                                case RUN_COMMAND:
-                                    log::info("Run command");
-                                    break;
-                                default:
-                                    break;
-                                }
+                                handle_request(request, server_exit);
 
                                 len = rc;
                                 log::info("%d bytes received", len);
 
                                 // TODO: Add response or don't echo back.
-                                rc = send(connfd, socket_bytes.data(), len, 0);
-
-                                if (rc < 0) {
-                                    perror("  send() failed");
+                                if ((rc = send(connfd, socket_bytes.data(), len, 0)) < 0) {
+                                    perror("send() failed");
                                     close_conn = true;
                                     break;
                                 }
-
-                            } while (true);
+                            }
 
                             // Cleanup connections
                             if (close_conn)
-                                socket_close(connfd, fdmax, master_set);
+                                close_connections(connfd, file_descriptor_max, master_set);
                         } // END existing connection is readable
                     }     // END (FD_ISSET(i, &working_set))
                 }         // END loop through selectable descriptors
@@ -344,25 +326,86 @@ namespace sockpuppet
             } while (!server_exit);
         }
 
+        static void handle_request(const Request& request, bool& server_exit)
+        {
+            // Handle request
+            switch (request.type()) {
+            case DOWNLOAD:
+                log::info("Download command");
+                break;
+            case EXIT:
+                log::info("Exit command. Terminating");
+                server_exit = true;
+                break;
+            case RUN_COMMAND:
+                log::info("Run command");
+                break;
+            default:
+                break;
+            }
+        }
+
+        /**
+         * Close active socket connections
+         * @param connfd: connection file descriptor
+         * @param fdmax: file descriptor max
+         * @param fd_set: file descriptor set
+         */
+        static void close_connections(int connfd, int fdmax, fd_set& master_set)
+        {
+            socket_close(connfd, fdmax, master_set);
+        }
+
         /**
          * Read 4 byte unsigned integer noting data size from packet header
          * @param header: header bytes
+         * @return size of packet body
          */
         static size_t read_size_header(const vector<u8>& header) { return ((u32*) header.data())[0]; }
+
+        /**
+         * Decrypt packet
+         * @param packet_body: received bytes after header
+         */
+        static void decrypt(vector<u8>& packet_body)
+        {
+            // TODO: Remove me and create handshake for key negotiation
+            const vector<u8> KEY(32, 0);
+            AEAD<BlockType::BLOCK_128> aead(KEY);
+            vector<u8> aad(255, 0);
+            aead.open(packet_body, aad);
+        }
+
+        /**
+         * Deserialize packet into request object
+         * @param decrypted: received bytes after header
+         * @param size: protobuf size header
+         * @param request: request message to deserialize into
+         * @param recv_size: received packet size
+         * @
+         */
+        static void deserialize(vector<u8>& decrypted, google::protobuf::uint32 size, Request& request,
+                                size_t recv_size)
+        {
+            ArrayInputStream ais(decrypted.data(), recv_size);
+            CodedInputStream coded_input(&ais);
+            coded_input.ReadVarint32(&size);
+            CodedInputStream::Limit message_limit = coded_input.PushLimit(size);
+            request.ParseFromCodedStream(&coded_input);
+            coded_input.PopLimit(message_limit);
+            log::info("\n\n%s", request.DebugString().c_str());
+        }
 
         /**
          * Decrypt/read protobuf message from packet
          * @param connfd: connection file descriptor
          * @param size: encoded protobuf header
          * @param request: output object for protobuf message
+         * @return: number of bytes received
          */
         static int read_body(int connfd, google::protobuf::uint32 size, Request& request)
         {
-            // TODO: Remove me and create handshake for key negotiation
-            const vector<u8> KEY(32, 0);
             const size_t RECV_SIZE = size + HEADER_SIZE;
-            AEAD<BlockType::BLOCK_128> aead(KEY);
-            vector<u8> aad(255, 0);
             vector<u8> socket_bytes(RECV_SIZE);
             int bytes_received = 0;
 
@@ -375,22 +418,9 @@ namespace sockpuppet
             }
 
             log::info("Received %lu bytes", RECV_SIZE);
-
-            // Strip header
             vector<u8> without_header(socket_bytes.begin() + HEADER_SIZE, socket_bytes.end());
-
-            // Decrypt
-            aead.open(without_header, aad);
-
-            // Deserialize
-            ArrayInputStream ais(without_header.data(), RECV_SIZE);
-            CodedInputStream coded_input(&ais);
-            coded_input.ReadVarint32(&size);
-            CodedInputStream::Limit message_limit = coded_input.PushLimit(size);
-            request.ParseFromCodedStream(&coded_input);
-            coded_input.PopLimit(message_limit);
-            log::info("\n\n%s", request.DebugString().c_str());
-
+            decrypt(without_header);
+            deserialize(without_header, size, request, RECV_SIZE);
             return bytes_received;
         }
     };
