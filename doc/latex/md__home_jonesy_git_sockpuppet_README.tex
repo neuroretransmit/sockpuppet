@@ -1,0 +1,104 @@
+Header only C++ implementation of encrypted non-\/blocking socket communication over T\+C\+P/\+IP using \href{https://gitlab.com/optimisticninja/rc6}{\texttt{ R\+C6-\/\+G\+C\+M-\/\+S\+IV}} for encryption/protobuf for messages.\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md1}{}\doxysection{Features}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md1}
+
+\begin{DoxyItemize}
+\item T\+C\+P/\+IP sockets encrypted with \href{https://gitlab.com/optimisticninja/rc6}{\texttt{ R\+C6-\/\+G\+C\+M-\/\+S\+IV}}
+\item Protobuf for messaging
+\end{DoxyItemize}\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md2}{}\doxysection{Packet Layout}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md2}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{Packet \{}
+\DoxyCodeLine{    Header \{}
+\DoxyCodeLine{        unsigned little endian 4-\/byte integer for message size}
+\DoxyCodeLine{    \}}
+\DoxyCodeLine{    }
+\DoxyCodeLine{    Encrypted Body \{}
+\DoxyCodeLine{        unsigned little endian 4-\/byte integer for protobuf size}
+\DoxyCodeLine{        protobuf message}
+\DoxyCodeLine{    \}}
+\DoxyCodeLine{\}}
+\end{DoxyCode}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md3}{}\doxysection{Usage}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md3}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md4}{}\doxysubsection{Documentation}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md4}
+Doxygen generated files are in \href{doc/latex}{\texttt{ {\ttfamily doc/latex}}} and \href{doc/html}{\texttt{ {\ttfamily doc/html}}}.\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md5}{}\doxysubsection{T\+O\+D\+O\+: Handshake via B-\/\+M\+Q\+K\+D (\+Multiparty  Quantum  Key  Distribution  with  block cipher)}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md5}
+Secure T\+C\+P/\+IP socket communications with quantum-\/proof handshake negotiation.\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md6}{}\doxysubsubsection{Server (\+Non-\/\+Blocking)}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md6}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\textcolor{preprocessor}{\#include <\mbox{\hyperlink{server_8h}{sockpuppet/server.h}}>}}
+\DoxyCodeLine{}
+\DoxyCodeLine{\textcolor{keywordtype}{int} main()}
+\DoxyCodeLine{\{}
+\DoxyCodeLine{    \mbox{\hyperlink{classsockpuppet_1_1server}{sockpuppet::server}} serv(31337);}
+\DoxyCodeLine{    serv.start(); \textcolor{comment}{// or s.start\_detached() to run in background}}
+\DoxyCodeLine{    }
+\DoxyCodeLine{    \textcolor{comment}{// and execute code down here}}
+\DoxyCodeLine{\}}
+\end{DoxyCode}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md7}{}\doxysubsubsection{Client}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md7}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\textcolor{preprocessor}{\#include <\mbox{\hyperlink{client_8h}{sockpuppet/client.h}}>}}
+\DoxyCodeLine{}
+\DoxyCodeLine{\textcolor{preprocessor}{\#include "{}proto/commands.pb.h"{}}}
+\DoxyCodeLine{}
+\DoxyCodeLine{\textcolor{keywordtype}{int} main()}
+\DoxyCodeLine{\{}
+\DoxyCodeLine{    \mbox{\hyperlink{classsockpuppet_1_1client}{sockpuppet::client}} client(31337);}
+\DoxyCodeLine{    }
+\DoxyCodeLine{    Request request;}
+\DoxyCodeLine{    request.set\_type(EXIT);}
+\DoxyCodeLine{    }
+\DoxyCodeLine{    client.send\_request(request);}
+\DoxyCodeLine{\}}
+\end{DoxyCode}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md8}{}\doxysection{Building/\+Installation}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md8}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md9}{}\doxysubsection{Requirements}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md9}
+
+\begin{DoxyItemize}
+\item C\+Make $>$= 3.\+13
+\item Protobuf
+\item G\+Test
+\item G\+Mock
+\item My \href{https://gitlab.com/optimisticninja/log}{\texttt{ log}} and \href{https://gitlab.com/optimisticninja/rc6}{\texttt{ rc6-\/gcm-\/siv}} implementation.
+\end{DoxyItemize}\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md10}{}\doxysubsection{The Build}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md10}
+First, install my \href{https://gitlab.com/optimisticninja/log}{\texttt{ log}} and \href{https://gitlab.com/optimisticninja/rc6}{\texttt{ rc6-\/gcm-\/siv}} headers.
+
+Then\+:
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\$ mkdir build \&\& cd build \# Create and move into build directory}
+\DoxyCodeLine{\$ cmake ..                \# Configure}
+\DoxyCodeLine{\$ make                    \# Build}
+\DoxyCodeLine{\$ sudo make install       \# Install headers}
+\end{DoxyCode}
+
+
+The headers are now in {\ttfamily /usr/local/include/sockpuppet}.\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md11}{}\doxysubsection{Uninstall}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md11}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\$ sudo rm -\/rf /usr/local/include/sockpuppet}
+\end{DoxyCode}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md12}{}\doxysection{Running (from $<$tt$>$build/$<$/tt$>$ folder)}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md12}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md13}{}\doxysubsection{Tests}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md13}
+Tests run a Google Test suite that test constraints of the paper as well as the test vectors.
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\$ ./tests/tests}
+\DoxyCodeLine{[==========] Running X tests from Y test suites.}
+\DoxyCodeLine{[-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/] Global test environment set-\/up.}
+\DoxyCodeLine{[-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/] Z tests from SockPuppet}
+\DoxyCodeLine{[ RUN      ] ...}
+\DoxyCodeLine{[       OK ] ... (0 ms)}
+\DoxyCodeLine{...}
+\DoxyCodeLine{...}
+\DoxyCodeLine{...}
+\DoxyCodeLine{[-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/] Global test environment tear-\/down}
+\DoxyCodeLine{[==========] X tests from Y test suites ran. (4 ms total)}
+\DoxyCodeLine{[  PASSED  ] X tests.}
+\DoxyCodeLine{}
+\DoxyCodeLine{...}
+\DoxyCodeLine{[  PASSED  ] X tests.}
+\end{DoxyCode}
+\hypertarget{md__home_jonesy_git_sockpuppet_README_autotoc_md14}{}\doxysection{License}\label{md__home_jonesy_git_sockpuppet_README_autotoc_md14}
+None. 

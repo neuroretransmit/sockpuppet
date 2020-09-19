@@ -64,6 +64,10 @@ int main()
 }
 ```
 
+#### TODO: Recon
+
+Describe creating a recon node.
+
 ## Building/Installation
 
 ### Requirements
