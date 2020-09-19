@@ -137,7 +137,7 @@ namespace sockpuppet
             // Create socket
             if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
                 perror("Failed to create socket, socket() failed. Terminating");
-                // log::error("Failed to create socket (perror: %d), terminating",);
+                // error("Failed to create socket (perror: %d), terminating",);
                 exit(1);
             }
 
