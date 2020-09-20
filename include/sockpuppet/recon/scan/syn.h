@@ -29,7 +29,7 @@ namespace scanner
             static const int TIMEOUT_SECONDS = 3;
             static const int TIMEOUT_USECONDS = 0;
 
-            // TODO: Remvoe and make configurable
+            // TODO: Remove and make configurable
             static constexpr uint16_t HIGH_INTEREST[25] = {
                 22,  2222, /* SSH */
                 23,  2323, /* Telnet */
@@ -88,13 +88,6 @@ namespace scanner
             }
 
             /**
-             * Asynchronous task called in range_scan
-             * @param ip: target IP address
-             * @param port: port to scan
-             */
-            static bool task(const string& ip, uint16_t port) { return is_open(ip, port); }
-
-            /**
              * Scan an inclusive range of ports
              * @param target: target ip address
              * @param lower: lower bound of inclusive range
@@ -108,7 +101,7 @@ namespace scanner
                     ports.push_back(false);
 
                 for (int port = lower; port <= higher; port++) {
-                    auto future = async(task, target, port);
+                    auto future = async(is_open, target, port);
                     ports.push_back(future.get());
                 }
 
