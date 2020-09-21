@@ -1,6 +1,20 @@
 # sockpuppet
 
-Header only C++ implementation of encrypted non-blocking socket communication over TCP/IP using [RC6-GCM-SIV](https://gitlab.com/optimisticninja/rc6) for encryption/protobuf for messages.
+Header only C++ implementation of encrypted non-blocking socket communication over TCP/IP using [RC6-GCM-SIV](https://gitlab.com/optimisticninja/rc6) for encryption/protobuf for messages. 
+
+In progress:
+
+* Node roles
+	* Recon
+		- SYN scan other targets
+		- Read ARP cache from executing node
+		- Sniff packets with libpcap
+		- Identify host OS/versions of running services
+	* Proxy
+		- Passthrough Protobuf message with onion encryption
+		- Become a SOCKS5 proxy
+	* Command
+		- Orchestrator of other node roles including command (need at least 1 to horizontally scale and be redundant)
 
 ## Features
 
@@ -76,6 +90,7 @@ Describe creating a recon node.
 * Protobuf
 * GTest
 * GMock
+* libpcap
 * My [log](https://gitlab.com/optimisticninja/log) and [rc6-gcm-siv](https://gitlab.com/optimisticninja/rc6) implementation.
 
 ### The Build

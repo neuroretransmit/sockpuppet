@@ -45,15 +45,16 @@ namespace sockpuppet
          */
         server(u16 port = 31337) : port(port) {}
 
-        /** Start server */
+        /// Start server
         void start() { handle(); }
 
-        /** Stop server */
+        /// Stop server
         void stop()
         {
             if (!detached) {
                 t.join();
             } else {
+                // Send request to detached thread to cleanly terminate
                 client c(port);
                 Request request;
                 request.set_type(EXIT);
@@ -64,13 +65,13 @@ namespace sockpuppet
             wait();
         }
 
-        /** Start server detached */
+        /// Start server running in background
         void start_detached() { handle(true); }
 
-        /** Check if server is stopped */
+        /// Check if server is stopped
         bool is_stopped() const { return thread_stopped; }
 
-        /** Wait for server to stop */
+        /// Wait for server to stop
         void wait()
         {
             while (!thread_stopped)
@@ -198,7 +199,7 @@ namespace sockpuppet
                     fdmax -= 1;
             }
 
-            log::info("socket close");
+            log::info("Socket close");
         }
 
         /**
@@ -330,18 +331,18 @@ namespace sockpuppet
         {
             // Handle request
             switch (request.type()) {
-            case DOWNLOAD:
-                log::info("Download command");
-                break;
-            case EXIT:
-                log::info("Exit command. Terminating");
-                server_exit = true;
-                break;
-            case RUN_COMMAND:
-                log::info("Run command");
-                break;
-            default:
-                break;
+                case DOWNLOAD:
+                    log::info("Download command");
+                    break;
+                case EXIT:
+                    log::info("Exit command. Terminating");
+                    server_exit = true;
+                    break;
+                case RUN_COMMAND:
+                    log::info("Run command");
+                    break;
+                default:
+                    break;
             }
         }
 

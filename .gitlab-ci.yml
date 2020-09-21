@@ -5,7 +5,10 @@ stages:
     - release
 
 before_script:
-    - apt-get update && apt-get -y install cmake libgtest-dev libgmock-dev libprotobuf-dev protobuf-compiler git
+    - apt-get update && apt-get -y install cmake libgtest-dev libgmock-dev libprotobuf-dev libpcap-dev protobuf-compiler git netcat
+    # Open port for SYN scan test
+    - netcat -l -p 666 &
+    # Clone/install dependencies for rc6/logging
     - git clone https://gitlab.com/optimisticninja/rc6.git
     - git clone https://gitlab.com/optimisticninja/log.git
     - cd rc6 && mkdir build && cd build && cmake .. && make && make install

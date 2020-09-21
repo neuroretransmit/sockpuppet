@@ -6,5 +6,6 @@ NamespaceIndentation: All
 PointerAlignment: Left
 SpaceAfterCStyleCast: 'true'
 SpaceAfterTemplateKeyword: 'false'
+IndentCaseLabels: 'true'
 
 ...
