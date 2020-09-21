@@ -11,6 +11,9 @@
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
+#include <vector>
+
+#include <log/log.h>
 
 using std::async;
 using std::cout;
@@ -18,9 +21,9 @@ using std::future;
 using std::string;
 using std::vector;
 
-namespace scanner
+namespace recon
 {
-    namespace tcp
+    namespace scan
     {
         class syn
         {
@@ -28,17 +31,6 @@ namespace scanner
             // Socket timeout
             static const int TIMEOUT_SECONDS = 3;
             static const int TIMEOUT_USECONDS = 0;
-
-            // TODO: Remove and make configurable
-            static constexpr uint16_t HIGH_INTEREST[25] = {
-                22,  2222, /* SSH */
-                23,  2323, /* Telnet */
-                25,        /* SMTP */
-                53,        /* DNS */
-                80,  8080, /* HTTP */
-                445, 3306, /* MySQL */
-                3389       /* RDP */
-            };
 
           public:
             /**
@@ -54,7 +46,7 @@ namespace scanner
                 struct timeval tv;
 
                 address.sin_family = AF_INET;
-                address.sin_addr.s_addr = inet_addr(target.c_str()); /* assign the address */
+                address.sin_addr.s_addr = inet_addr(target.c_str());
                 address.sin_port = htons(port);
 
                 sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -93,14 +85,11 @@ namespace scanner
              * @param lower: lower bound of inclusive range
              * @param higher: higher bound of inclusive range
              */
-            static vector<bool> range_scan(const string& target, int lower, int higher)
+            static vector<bool> range_scan(const string& target, uint16_t lower, uint16_t higher)
             {
                 vector<bool> ports;
 
-                for (int i = 0; i < lower - 1; i++)
-                    ports.push_back(false);
-
-                for (int port = lower; port <= higher; port++) {
+                for (uint16_t port = lower; port <= higher; port++) {
                     auto future = async(is_open, target, port);
                     ports.push_back(future.get());
                 }
@@ -114,31 +103,11 @@ namespace scanner
              */
             static vector<bool> quick_scan(const string& target)
             {
-                cout << "Quick scan on " << target << "..."
-                     << "\n";
+                log::info("Running quick scan on %s...", target.c_str());
                 return range_scan(target, 0, 2000);
             }
 
-            /**
-             * Scan specified "high interest" ports on target
-             * @param target: target IP address
-             */
-            static vector<bool> high_interest_scan(const string& target)
-            {
-                cout << "High interest scan on " << target << "..."
-                     << "\n";
-                vector<bool> ports;
-
-                for (int i = 0; i < HIGH_INTEREST[0] - 1; i++)
-                    ports.push_back(false);
-
-                for (int port : HIGH_INTEREST) {
-                    auto future = async(task, target, port);
-                    ports.push_back(future.get());
-                }
-
-                return ports;
-            }
+            // TODO: Scan for vector of specific ports instead of range
         };
-    } // namespace tcp
-} // namespace scanner
+    } // namespace scan
+} // namespace recon
