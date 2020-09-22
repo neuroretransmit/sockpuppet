@@ -16,9 +16,9 @@ TEST(Sniff, EnumerateInterfaces)
 // TODO: Make detachable killed threads
 // CI should be running as root so permissions should not fail.
 // thread will start detached so once sniffing, test should finish.
-// TEST(Sniff, PacketCaptureInterface1)
-// {
-//     packet_capture p;
-//     vector<string> interfaces = p.interfaces();
-//     p.sniff(interfaces[0]);
-// }
+TEST(Sniff, PacketCaptureInterface1)
+{
+    packet_capture p;
+    vector<string> interfaces = p.interfaces();
+    p.sniff(interfaces[0], 5);
+}
