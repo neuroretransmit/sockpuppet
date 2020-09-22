@@ -69,6 +69,7 @@ namespace recon
                     log::info("%03d: Mac Address of [%s] on [%s] is \"%s\"", ++count, ip, device, mac);
                 }
                 log::info("--- END READ ARP CACHE ---");
+
                 fclose(arp_cache);
                 return 0;
             }
