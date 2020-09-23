@@ -3,6 +3,7 @@ project(example NONE)
 
 add_executable(client client.cc)
 add_executable(server server.cc)
+add_executable(keylogger keylog.cc)
 
 find_package(Protobuf REQUIRED)
 include_directories(${Protobuf_INCLUDE_DIRS})
