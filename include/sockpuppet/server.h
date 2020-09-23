@@ -136,26 +136,21 @@ namespace sockpuppet
             int optval = 1;
 
             // Create socket
-            if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-                perror("Failed to create socket, socket() failed. Terminating");
-                // error("Failed to create socket (perror: %d), terminating",);
-                exit(1);
-            }
+            if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                log::fatal("Failed to create socket, socket() failed");
 
             // Set option to put out of band data in the normal input queue
             if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(int)) == -1) ||
                 (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*) &optval, sizeof(int)) == -1)) {
-                log::error("Unable to set socket options");
                 close(sockfd);
-                exit(1);
+                log::fatal("Unable to set socket options");
             }
 
             // Set socket to non-blocking
             int on = 1;
             if (ioctl(sockfd, FIONBIO, (char*) &on) < 0) {
-                perror("ioctl() failed");
                 close(sockfd);
-                exit(-1);
+                log::fatal("ioctl() failed");
             }
 
             // Assign IP/port
@@ -166,17 +161,15 @@ namespace sockpuppet
 
             // Bind socket to IP
             if (bind(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0) {
-                log::error("Socket bind failed");
                 close(sockfd);
-                exit(1);
+                log::fatal("Socket bind() failed");
             }
 
             // TODO: What is 32?
             // Start listener
             if ((listen(sockfd, 32))) {
-                log::error("Socket listen failed");
                 close(sockfd);
-                exit(1);
+                log::error("Socket listen() failed");
             }
 
             log::info("Listening on port %d...", port);
@@ -239,7 +232,7 @@ namespace sockpuppet
 
                 if ((socket_return_code =
                          select(file_descriptor_max + 1, &working_set, NULL, NULL, &timeout)) < 0) {
-                    perror("select() failed");
+                    log::error("select() failed");
                     break;
                 } else if (socket_return_code == 0) {
                     log::error("select() timed out. Terminating");
@@ -263,7 +256,7 @@ namespace sockpuppet
                                     // EWOULDBLOCK means all were accepted,
                                     // other failures terminate the server.
                                     if (errno != EWOULDBLOCK) {
-                                        perror("accept() failed");
+                                        log::error("accept() failed");
                                         server_exit = true;
                                     }
 
@@ -311,7 +304,7 @@ namespace sockpuppet
 
                                 // TODO: Add response or don't echo back.
                                 if ((rc = send(connfd, socket_bytes.data(), len, 0)) < 0) {
-                                    perror("send() failed");
+                                    log::error("send() failed");
                                     close_conn = true;
                                     break;
                                 }
@@ -413,7 +406,7 @@ namespace sockpuppet
             // Receive data
             if ((bytes_received = recv(connfd, socket_bytes.data(), socket_bytes.size(), 0)) < 0) {
                 if (errno != EWOULDBLOCK) {
-                    perror("recv() failed");
+                    log::error("recv() failed");
                     return -1;
                 }
             }

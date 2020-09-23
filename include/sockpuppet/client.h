@@ -40,16 +40,14 @@ namespace sockpuppet
         {
             // Create socket
             if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-                log::error("Timeout waiting for socket creation, terminating");
-                exit(1);
+                log::fatal("Timeout waiting for socket creation");
             }
 
             // Set option to put out of band data in the normal input queue
             int optval = 1;
             if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(int)) == -1) ||
                 (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*) &optval, sizeof(int)) == -1)) {
-                log::error("Unable to set socket options");
-                exit(1);
+                log::fatal("Unable to set socket options");
             }
 
             // Assign IP/port
@@ -133,8 +131,7 @@ namespace sockpuppet
 
             // Timeout reached
             if ((millis.count() / 1000) >= 30) {
-                log::error("connect() timeout, terminating.");
-                exit(1);
+                log::fatal("connect() timeout");
             }
 
             log::info("--- SEND ---");

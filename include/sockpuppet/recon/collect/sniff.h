@@ -40,6 +40,7 @@ namespace recon
         /// Packet type enumeration
         typedef enum { ICMP = 1, IGMP = 2, TCP = 6, UDP = 17 } packet_type;
 
+        // TODO: Root check
         // Packet capture interfaces detected by libpcap
         class packet_capture
         {
@@ -50,8 +51,7 @@ namespace recon
                 char err[100];
 
                 if (pcap_findalldevs(&all_interfaces, err)) {
-                    log::error("Unable to enumerate devices, terminating. > %s", err);
-                    return -1;
+                    log::fatal("Unable to enumerate devices, terminating. > %s", err);
                 }
 
                 pcap_if_t* device;
@@ -103,13 +103,11 @@ namespace recon
                 log::info("--- SNIFFING %s ---", interface_descriptor.c_str());
 
                 if (handle == NULL) {
-                    log::error("Couldn't open %s : %s", interface_descriptor.c_str(), err);
-                    exit(1);
+                    log::fatal("Couldn't open %s : %s", interface_descriptor.c_str(), err);
                 }
 
                 if (pcap_dumper == NULL) {
-                    log::error("Failed to open session PCAP file");
-                    exit(1);
+                    log::fatal("Failed to open session PCAP file");
                 }
 
                 pcap_ctx ctx = {.handle = handle, .dumper = pcap_dumper};
