@@ -46,6 +46,7 @@ namespace recon
              */
             static int read_cache(vector<arp_entry>& entries)
             {
+                // TODO: C++ify and stop using FILE. Look up how to fscanf using ifstream
                 FILE* arp_cache = fopen(ARP_CACHE_LOCATION, "r");
 
                 if (!arp_cache) {
