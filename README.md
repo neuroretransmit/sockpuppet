@@ -42,9 +42,9 @@ Packet {
 
 Doxygen generated files are in [`doc/latex`](doc/latex) and [`doc/html`](doc/html).
 
-### TODO: Handshake via B-MQKD (Multiparty  Quantum  Key  Distribution  with  block cipher) 
+### TODO: Handshake via SIDH
 
-Secure TCP/IP socket communications with quantum-proof handshake negotiation.
+Secure TCP/IP socket communications with post-quantum handshake negotiation.
 
 #### Server (Non-Blocking)
 
@@ -91,6 +91,7 @@ Describe creating a recon node.
 * GTest
 * GMock
 * libpcap
+* GMP
 * My [log](https://gitlab.com/optimisticninja/log) and [rc6-gcm-siv](https://gitlab.com/optimisticninja/rc6) implementation.
 
 ### The Build

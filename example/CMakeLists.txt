@@ -5,6 +5,7 @@ add_executable(client client.cc)
 add_executable(server server.cc)
 add_executable(keylogger keylog.cc)
 
+find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
 include_directories(${Protobuf_INCLUDE_DIRS})
 
@@ -25,3 +26,5 @@ target_link_libraries(server
     PUBLIC
     ${PROTOBUF_LIBRARIES}
     ${CMAKE_BINARY_DIR}/proto/libsockproto.a)
+
+target_link_libraries(keylogger Threads::Threads)

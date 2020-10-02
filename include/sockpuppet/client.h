@@ -70,7 +70,7 @@ namespace sockpuppet
 
             // Encrypt request
             const vector<u8> KEY = vector<u8>(32, 0);
-            AEAD<BlockType::BLOCK_128> aead = AEAD<BlockType::BLOCK_128>(KEY);
+            AEAD<BlockWordSize::BLOCK_128> aead = AEAD<BlockWordSize::BLOCK_128>(KEY);
             aead.seal(socket_buffer, aad);
 
             // Read size as little-endian bytes
@@ -105,7 +105,7 @@ namespace sockpuppet
         }
 
       private:
-        // TODO: Remove key and use B-MQKD for key exchange
+        // TODO: Remove key and use SIDH for key exchange
         vector<u8> aad = vector<u8>(255, 0);
 
         const size_t HEADER_SIZE = sizeof(u32);

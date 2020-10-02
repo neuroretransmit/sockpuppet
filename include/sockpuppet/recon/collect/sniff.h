@@ -18,6 +18,8 @@
 
 #include <log/log.h>
 
+#include "../../util/privs.h"
+
 using std::atomic;
 using std::hex;
 using std::setfill;
@@ -40,7 +42,6 @@ namespace recon
         /// Packet type enumeration
         typedef enum { ICMP = 1, IGMP = 2, TCP = 6, UDP = 17 } packet_type;
 
-        // TODO: Root check
         // Packet capture interfaces detected by libpcap
         class packet_capture
         {
@@ -49,6 +50,9 @@ namespace recon
             int enumerate()
             {
                 char err[100];
+
+                if (!is_privileged_user())
+                    log::fatal("Root/sudo required for device enumeration");
 
                 if (pcap_findalldevs(&all_interfaces, err)) {
                     log::fatal("Unable to enumerate devices, terminating. > %s", err);
