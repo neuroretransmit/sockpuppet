@@ -365,7 +365,7 @@ namespace sockpuppet
         {
             // TODO: Remove me and create handshake for key negotiation
             const vector<u8> KEY(32, 0);
-            AEAD<BlockType::BLOCK_128> aead(KEY);
+            AEAD<BlockWordSize::BLOCK_128> aead(KEY);
             vector<u8> aad(255, 0);
             aead.open(packet_body, aad);
         }

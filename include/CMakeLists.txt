@@ -7,6 +7,7 @@ set(VERSION_MINOR   0   CACHE STRING "Project minor version number.")
 set(VERSION_PATCH   1   CACHE STRING "Project patch version number.")
 set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Protobuf REQUIRED)
+find_package(Threads REQUIRED)
 install(DIRECTORY ./ DESTINATION include
         FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY $(CMAKE_BINARY_DIR)/proto DESTINATION include
