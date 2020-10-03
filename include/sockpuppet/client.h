@@ -50,7 +50,7 @@ namespace sockpuppet
                 log::fatal("Unable to set socket options");
             }
 
-            // Assign IP/port
+            // Assign IP/port TODO: Can we use spoofed addresses on non IPSEC connections? Curious
             servaddr.sin_family = AF_INET;
             servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
             servaddr.sin_port = htons(port);
@@ -62,30 +62,24 @@ namespace sockpuppet
          */
         void send_request(const Request& request)
         {
-            size_t size = request.ByteSizeLong() + HEADER_SIZE;
-            vector<u8> socket_buffer(size);
+            size_t proto_msg_size = request.ByteSizeLong() + HEADER_SIZE;
+            vector<u8> socket_buffer(proto_msg_size);
 
             socket_connect();
-            create_request(request, socket_buffer, size);
+            create_protobuf_request(request, socket_buffer, proto_msg_size);
 
-            // Encrypt request
-            const vector<u8> KEY = vector<u8>(32, 0);
-            AEAD<BlockWordSize::BLOCK_128> aead = AEAD<BlockWordSize::BLOCK_128>(KEY);
+            // Encrypt protobuf request
+            const vector<u8> REQUEST_KEY = vector<u8>(32, 0);
+            AEAD<BlockWordSize::BLOCK_128> aead(REQUEST_KEY);
             aead.seal(socket_buffer, aad);
-
-            // Read size as little-endian bytes
-            u32 encrypted_size = socket_buffer.size();
-            u8* encrypted_size_bytes = (u8*) &encrypted_size;
-
-            // Insert encryption size header
-            for (int i = HEADER_SIZE - 1; i >= 0; i--)
-                socket_buffer.insert(socket_buffer.begin(), encrypted_size_bytes[i]);
+            create_encryption_header(socket_buffer);
 
             try {
                 int byte_count;
 
                 // Send data
                 while (true) {
+                    // Keep retrying on fail
                     if ((byte_count = send(sockfd, socket_buffer.data(), socket_buffer.size(), 0)) == -1) {
                         log::error("Failed to send data");
                         continue;
@@ -144,13 +138,28 @@ namespace sockpuppet
          * @param socket_buffer: vector of bytes for output
          * @param size: byte size of output
          */
-        void create_request(const Request& request, vector<u8>& socket_buffer, size_t size)
+        void create_protobuf_request(const Request& request, vector<u8>& socket_buffer, size_t size)
         {
             // Serialize object to vector of bytes
             ArrayOutputStream aos(socket_buffer.data(), size);
             CodedOutputStream coded_output = CodedOutputStream(&aos);
             coded_output.WriteVarint32(request.ByteSizeLong());
             request.SerializeToCodedStream(&coded_output);
+        }
+
+        /**
+         * Add encrypted data size header to socket buffer
+         * @param socket_buffer
+         */
+        void create_encryption_header(vector<u8>& socket_buffer)
+        {
+            // Read size as little-endian bytes
+            u32 encrypted_size = is_big_endian() ? swap_endian(socket_buffer.size()) : socket_buffer.size();
+            u8* encrypted_size_bytes = (u8*) &encrypted_size;
+
+            // Insert encryption size header
+            for (size_t i = 0; i < HEADER_SIZE; i++)
+                socket_buffer.insert(socket_buffer.begin(), encrypted_size_bytes[i]);
         }
     };
 } // namespace sockpuppet

