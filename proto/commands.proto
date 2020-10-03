@@ -3,9 +3,18 @@ syntax = "proto3";
 // Server/Client
 
 enum RequestType {
+    // Terminate recipient program
     EXIT = 0;
-    RUN_COMMAND = 1;
-    DOWNLOAD = 2;
+    // Return properties relevant to network utilization, not full report
+    INFO = 1;
+    // Execute remote command
+    RUN_COMMAND = 2;
+    // Download to recipient machine
+    DOWNLOAD = 3;
+    // Monitor recipient machine
+    MONITOR = 4;
+    // Collect information from recipient machine
+    COLLECT = 5;
 }
 
 message Request {
@@ -13,13 +22,15 @@ message Request {
     string id = 2;
     string origin = 3;
     string size = 4;
-    string data = 5;
+    map<string, string> attributes = 5;
+    string data = 6;
 }
 
 message Response {
-    string id = 1;
-    string origin = 2;
-    string size = 3;
-    int32 code = 4;
-    string output = 5;
+    RequestType request_type = 1;
+    string request_id = 2;
+    string origin = 3;
+    string size = 4;
+    map<string, string> attributes = 5;
+    string data = 6;
 }

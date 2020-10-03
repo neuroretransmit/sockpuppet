@@ -51,12 +51,11 @@ namespace recon
             {
                 char err[100];
 
-                if (!is_privileged_user())
+                if (!is_root())
                     log::fatal("Root/sudo required for device enumeration");
 
-                if (pcap_findalldevs(&all_interfaces, err)) {
+                if (pcap_findalldevs(&all_interfaces, err))
                     log::fatal("Unable to enumerate devices, terminating. > %s", err);
-                }
 
                 pcap_if_t* device;
 
